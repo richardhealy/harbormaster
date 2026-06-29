@@ -1,0 +1,47 @@
+{
+  "name": "harbormaster",
+  "version": "0.1.0",
+  "description": "A coordination layer for a fleet of AI coding agents on one repo",
+  "main": "dist/index.js",
+  "bin": {
+    "hm": "dist/agent-iface/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node -r tsx/cjs src/db/migrate.ts"
+  },
+  "keywords": ["agents", "coordination", "release-management", "scheduler"],
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/app": "^14.0.2",
+    "@octokit/rest": "^20.1.1",
+    "@octokit/webhooks": "^13.3.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "pg": "^8.12.0",
+    "semver": "^7.6.3",
+    "simple-git": "^3.27.0",
+    "winston": "^3.14.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.6",
+    "@types/semver": "^7.5.8",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vitest/coverage-v8": "^2.1.1",
+    "eslint": "^8.57.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.1"
+  }
+}
