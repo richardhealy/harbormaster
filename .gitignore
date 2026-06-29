@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.pem
+coverage/
+.claude/
+CLAUDE.md
+*.swp
+*.swo
+.DS_Store
