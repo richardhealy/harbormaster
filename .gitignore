@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.local
+*.js.map
+coverage/
+.claude/
+CLAUDE.md
+*.scratchpad
+.DS_Store
