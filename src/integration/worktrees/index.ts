@@ -4,6 +4,11 @@ import type { CreateWorktreeOptions, WorktreeInfo } from './types'
 
 export type { WorktreeInfo, CreateWorktreeOptions } from './types'
 
+/**
+ * Gives each dispatched task its own git worktree, isolated off the current
+ * tip, so concurrent agents can work on separate branches without stepping
+ * on each other's checked-out files.
+ */
 export class WorktreeManager {
   constructor(
     private readonly git: SimpleGit,
@@ -56,7 +61,15 @@ export class WorktreeManager {
   }
 }
 
-/** Parse `git worktree list --porcelain` output into WorktreeInfo records */
+/**
+ * Parses `git worktree list --porcelain` output into WorktreeInfo records,
+ * keeping only worktrees that live under `worktreeBase` (i.e. ones harbormaster
+ * manages, excluding the main worktree and any unrelated ones).
+ *
+ * Exported separately from {@link WorktreeManager.list} so the porcelain
+ * parsing logic can be unit tested directly against sample git output,
+ * without needing a real git repo or SimpleGit instance.
+ */
 export function parseWorktreeList(raw: string, worktreeBase: string): WorktreeInfo[] {
   const blocks = raw.trim().split(/\n\n+/)
   const result: WorktreeInfo[] = []
@@ -86,7 +99,10 @@ export function parseWorktreeList(raw: string, worktreeBase: string): WorktreeIn
   return result
 }
 
-/** Factory that creates a WorktreeManager with a default worktree base */
+/**
+ * Creates a {@link WorktreeManager}, defaulting `worktreeBase` to a
+ * `.worktrees` directory under `repoRoot` when not supplied.
+ */
 export function createWorktreeManager(
   git: SimpleGit,
   repoRoot: string,

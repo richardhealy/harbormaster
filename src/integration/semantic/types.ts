@@ -1,3 +1,4 @@
+/** A single in-flight branch to typecheck, along with the files it touches. */
 export interface BranchInput {
   branchName: string
   worktreePath: string
@@ -5,6 +6,7 @@ export interface BranchInput {
   changedFiles: string[]
 }
 
+/** A single diagnostic line parsed from `tsc --noEmit` output. */
 export interface TypeScriptError {
   file: string
   line: number
@@ -15,6 +17,7 @@ export interface TypeScriptError {
   severity: 'error' | 'warning'
 }
 
+/** Result of typechecking a single branch's worktree. */
 export interface BranchCheckResult {
   branchName: string
   /** True when tsc produced no errors or warnings */
@@ -23,6 +26,10 @@ export interface BranchCheckResult {
   durationMs: number
 }
 
+/**
+ * A semantic conflict detected between two branches — their changes typecheck
+ * incompatibly when considered together, even if each branch alone is clean.
+ */
 export interface CrossBranchConflict {
   branchA: string
   branchB: string
@@ -32,6 +39,7 @@ export interface CrossBranchConflict {
   filesInvolved: string[]
 }
 
+/** Aggregate result of running semantic conflict detection across a set of branches. */
 export interface SemanticConflictReport {
   branchResults: BranchCheckResult[]
   crossBranchConflicts: CrossBranchConflict[]
@@ -39,6 +47,7 @@ export interface SemanticConflictReport {
   hasConflicts: boolean
 }
 
+/** Output of an executed shell command. */
 export interface ExecResult {
   stdout: string
   stderr: string

@@ -1,5 +1,11 @@
+/** How much scrutiny a change should get, driven by the domain(s) it touches. */
 export type RiskLevel = 'low' | 'medium' | 'high'
 
+/**
+ * The gating rules for a single domain: how much scope drift is tolerated
+ * and which of the optional pipeline stages (QA, human approval) it must
+ * pass. Higher-risk domains get tighter drift thresholds and more stages.
+ */
 export interface DomainPolicy {
   domain: string
   riskLevel: RiskLevel
@@ -9,9 +15,16 @@ export interface DomainPolicy {
   requiresHITL: boolean
 }
 
+/** The four stages a change passes through, in order, before it can merge. */
 export type GateStage = 'scope' | 'ci' | 'qa' | 'hitl'
+/**
+ * Outcome of a single gate stage. `'skipped'` is distinct from `'pass'`: it
+ * means no runner was configured for an optional stage (e.g. no QA function
+ * supplied), not that the stage was evaluated and succeeded.
+ */
 export type GateStatus = 'pass' | 'fail' | 'skipped'
 
+/** Recorded outcome of one stage in a {@link GatePipelineResult}. */
 export interface GateResult {
   stage: GateStage
   status: GateStatus
@@ -19,6 +32,7 @@ export interface GateResult {
   details?: Record<string, unknown>
 }
 
+/** Input to {@link GatePipeline.run} describing the change to be gated. */
 export interface GatePipelineInput {
   dispatchId: string
   ticketId: string
@@ -32,6 +46,7 @@ export interface GatePipelineInput {
   prNumber?: number
 }
 
+/** Final outcome of running a change through the gate pipeline. */
 export interface GatePipelineResult {
   dispatchId: string
   policy: DomainPolicy
@@ -42,6 +57,7 @@ export interface GatePipelineResult {
   blockedAt?: GateStage
 }
 
+/** Result of comparing actual diff files against the predicted impact surface. */
 export interface ScopeCheckResult {
   passed: boolean
   expectedFiles: string[]
@@ -56,7 +72,15 @@ export interface ScopeCheckResult {
   reason?: string
 }
 
-/** Injectable function types — keep gates testable without real infrastructure */
+/**
+ * Injectable function types for the live-infrastructure-facing gate stages.
+ * The pipeline never polls CI, runs QA, or pings a reviewer itself — the
+ * caller supplies these callbacks instead, which keeps the pipeline
+ * testable and matches the agent-iface design where the calling agent
+ * reports observed status rather than the pipeline reaching out directly.
+ */
 export type CICheckFn = (branch: string) => Promise<'success' | 'failure' | 'pending' | 'unknown'>
+/** Runs QA for a dispatch's branch and reports pass/fail with an optional reason. */
 export type QACheckFn = (dispatchId: string, branch: string) => Promise<{ passed: boolean; reason?: string }>
+/** Requests human-in-the-loop approval for a dispatch and reports the reviewer's decision. */
 export type ApprovalFn = (dispatchId: string, ticketId: string) => Promise<boolean>

@@ -1,3 +1,11 @@
+/**
+ * A declared "genuinely un-mergeable" spot — the narrow exception to
+ * harbormaster's otherwise lock-free scheduling. Most of the repo never
+ * needs coordination; hotspots mark the small set of paths (migrations, a
+ * giant shared file, an interface contract, ...) where two concurrent
+ * agents touching the same area would produce conflicts too costly to
+ * resolve after the fact, so they're gated by an advisory lease instead.
+ */
 export interface Hotspot {
   /** Unique name identifying this hotspot (e.g. "db-migrations", "api-contract") */
   name: string
@@ -11,8 +19,13 @@ export interface Hotspot {
   reason: string
 }
 
+/**
+ * Outcome of a lease acquisition attempt. `'not-required'` is expected to be
+ * the common case, since most files don't touch any declared hotspot.
+ */
 export type LeaseStatus = 'granted' | 'blocked' | 'not-required'
 
+/** A granted advisory lock on a hotspot, held by one dispatch/agent at a time. */
 export interface Lease {
   /** Unique lease identifier */
   id: string
@@ -28,6 +41,7 @@ export interface Lease {
   matchedFiles: string[]
 }
 
+/** A request to acquire an advisory lease on whatever hotspot the given files match. */
 export interface LeaseRequest {
   /** ID of the requesting dispatch or agent */
   holderId: string
@@ -37,6 +51,7 @@ export interface LeaseRequest {
   ttlMs?: number
 }
 
+/** Result of an {@link LeaseRequest} acquisition attempt. */
 export interface LeaseResult {
   status: LeaseStatus
   /** The newly acquired lease (present when status is 'granted') */
@@ -49,6 +64,10 @@ export interface LeaseResult {
   matchedFiles: string[]
 }
 
+/**
+ * Result of a read-only hotspot check — reports overlap without acquiring
+ * or affecting any lease, so it's safe to call speculatively.
+ */
 export interface HotspotCheckResult {
   /** True when the file list touches at least one registered hotspot */
   touchesHotspot: boolean

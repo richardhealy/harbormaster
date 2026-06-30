@@ -1,3 +1,4 @@
+/** Ticket data used to derive an {@link ImpactSurface}. */
 export interface ImpactEstimateInput {
   ticketId: string
   title: string
@@ -7,6 +8,11 @@ export interface ImpactEstimateInput {
   expectedFiles?: string[]
 }
 
+/**
+ * The set of files, directories, and domains a ticket is expected to touch.
+ * Produced by {@link ImpactEstimator.estimate} and consumed by the scheduler
+ * to compute overlap between tickets.
+ */
 export interface ImpactSurface {
   ticketId: string
   /** File paths this ticket is expected to affect */
@@ -25,6 +31,11 @@ export interface ImpactSurface {
 /** Mapping from domain keyword to canonical domain name */
 export type DomainMap = Record<string, string>
 
+/**
+ * Built-in keyword-to-domain mapping used when no custom {@link DomainMap} is
+ * supplied to {@link ImpactEstimator}. Multiple keywords may resolve to the
+ * same domain (e.g. `branch`, `tag`, and `hotfix` all map to `release`).
+ */
 export const DEFAULT_DOMAIN_MAP: DomainMap = {
   release: 'release',
   branch: 'release',

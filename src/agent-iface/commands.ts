@@ -44,6 +44,12 @@ import {
 // Scheduling
 // ---------------------------------------------------------------------------
 
+/**
+ * Estimates per-ticket impact surfaces and turns them into a conflict-aware
+ * dispatch plan in one call — the end-to-end `ImpactEstimator` + `Scheduler`
+ * pipeline an agent needs to decide what can run in parallel, what must be
+ * sequenced, and what should be merged into a single job.
+ */
 export function planSchedule(input: unknown): DispatchPlan {
   const { tickets, mergeThreshold, sequenceThreshold } = planScheduleSchema.parse(input)
 
@@ -83,6 +89,15 @@ export function planSchedule(input: unknown): DispatchPlan {
 
 let sharedHotspotManager: HotspotLeaseManager | undefined
 
+/**
+ * Returns the process-wide `HotspotLeaseManager`, creating it on first use.
+ * Leases must persist across many calls within one long-running MCP session
+ * (an MCP server is a single process handling many tool calls over its
+ * lifetime), so the manager is a singleton rather than constructed per call —
+ * a fresh instance per call would forget every lease immediately after it
+ * was acquired. The CLI doesn't benefit from this since each invocation is
+ * its own process, but it shares the same code path for simplicity.
+ */
 export function getHotspotManager(): HotspotLeaseManager {
   if (!sharedHotspotManager) sharedHotspotManager = createHotspotLeaseManager()
   return sharedHotspotManager
@@ -94,11 +109,20 @@ export function resetHotspotManager(manager?: HotspotLeaseManager): HotspotLease
   return sharedHotspotManager
 }
 
+/**
+ * Checks whether a file list touches a registered hotspot, without acquiring
+ * a lease. `manager` defaults to the shared singleton but can be overridden
+ * for tests or one-off use against an isolated manager.
+ */
 export function checkHotspot(input: unknown, manager = getHotspotManager()): HotspotCheckResult {
   const { files } = checkHotspotSchema.parse(input)
   return manager.check(files)
 }
 
+/**
+ * Declares (or replaces) a hotspot definition. `manager` defaults to the
+ * shared singleton but can be overridden for tests or one-off use.
+ */
 export function registerHotspot(
   input: unknown,
   manager = getHotspotManager(),
@@ -108,16 +132,30 @@ export function registerHotspot(
   return { registered: true, hotspot }
 }
 
+/**
+ * Acquires an advisory lease over a file set on behalf of a holder.
+ * `manager` defaults to the shared singleton but can be overridden for
+ * tests or one-off use.
+ */
 export function acquireLease(input: unknown, manager = getHotspotManager()): LeaseResult {
   const request: LeaseRequest = acquireLeaseSchema.parse(input)
   return manager.acquire(request)
 }
 
+/**
+ * Releases a single lease by id. `manager` defaults to the shared singleton
+ * but can be overridden for tests or one-off use.
+ */
 export function releaseLease(input: unknown, manager = getHotspotManager()): { released: boolean } {
   const { leaseId } = releaseLeaseSchema.parse(input)
   return { released: manager.release(leaseId) }
 }
 
+/**
+ * Releases every lease held by a given dispatch/agent id, e.g. on dispatch
+ * completion or failure. `manager` defaults to the shared singleton but can
+ * be overridden for tests or one-off use.
+ */
 export function releaseLeaseByHolder(
   input: unknown,
   manager = getHotspotManager(),
@@ -126,6 +164,10 @@ export function releaseLeaseByHolder(
   return { count: manager.releaseByHolder(holderId) }
 }
 
+/**
+ * Lists all currently active (non-expired) leases. `manager` defaults to
+ * the shared singleton but can be overridden for tests or one-off use.
+ */
 export function listActiveLeases(manager = getHotspotManager()): Lease[] {
   return manager.listActive()
 }
@@ -134,6 +176,15 @@ export function listActiveLeases(manager = getHotspotManager()): Lease[] {
 // Gates
 // ---------------------------------------------------------------------------
 
+/**
+ * Runs a dispatch through the scope/CI/QA/HITL gate pipeline. The CI status
+ * (and optional QA result / human approval) is reported by the calling
+ * agent as input rather than fetched by this function from live
+ * infrastructure — the agent is the one that observed the CI run, so it
+ * passes that observation in. This keeps the gate logic pure and testable
+ * and matches the spec's gate-pipeline design, which judges given signals
+ * rather than sourcing them itself.
+ */
 export async function runGatePipeline(input: unknown): Promise<GatePipelineResult> {
   const parsed = runGateSchema.parse(input)
 
@@ -162,6 +213,11 @@ function resolveProvenancePool(pool?: ProvenancePool): ProvenancePool {
   return pool ?? getPool(loadConfig().DATABASE_URL)
 }
 
+/**
+ * Appends an event to the immutable audit log. `pool` defaults to a pool
+ * built from `loadConfig().DATABASE_URL` but can be injected for tests or
+ * to target a specific database.
+ */
 export async function recordProvenance(
   input: unknown,
   pool?: ProvenancePool,
@@ -172,6 +228,11 @@ export async function recordProvenance(
   return { id }
 }
 
+/**
+ * Queries the audit log by ticket, agent, event type, or time range. `pool`
+ * defaults to a pool built from `loadConfig().DATABASE_URL` but can be
+ * injected for tests or to target a specific database.
+ */
 export async function queryProvenance(
   input: unknown,
   pool?: ProvenancePool,
@@ -196,6 +257,11 @@ function resolveReleasesPool(pool?: ReleasesPool): ReleasesPool {
   return pool ?? getPool(loadConfig().DATABASE_URL)
 }
 
+/**
+ * Creates a new release record in the planning stage. `pool` defaults to a
+ * pool built from `loadConfig().DATABASE_URL` but can be injected for
+ * tests or to target a specific database.
+ */
 export async function createRelease(input: unknown, pool?: ReleasesPool): Promise<ReleaseRecord> {
   const parsed = createReleaseSchema.parse(input)
   const manager = createReleaseManager(resolveReleasesPool(pool))
@@ -206,12 +272,24 @@ export async function createRelease(input: unknown, pool?: ReleasesPool): Promis
   })
 }
 
+/**
+ * Lists releases, optionally filtered by status. `pool` defaults to a pool
+ * built from `loadConfig().DATABASE_URL` but can be injected for tests or
+ * to target a specific database.
+ */
 export async function listReleases(input: unknown, pool?: ReleasesPool): Promise<ReleaseRecord[]> {
   const { status } = listReleasesSchema.parse(input)
   const manager = createReleaseManager(resolveReleasesPool(pool))
   return manager.listReleases(status)
 }
 
+/**
+ * Builds a release manifest by pulling the matching tickets from Linear.
+ * `deps.pool` defaults to a pool built from `loadConfig().DATABASE_URL` and
+ * `deps.linearClient` defaults to a `LinearClient` built from
+ * `loadConfig().LINEAR_API_KEY`; both can be injected for tests or to
+ * target specific instances.
+ */
 export async function buildReleaseManifest(
   input: unknown,
   deps: { pool?: ReleasesPool; linearClient?: ReleaseLinearClient } = {},

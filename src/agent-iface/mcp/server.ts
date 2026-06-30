@@ -115,9 +115,16 @@ const TOOLS: Record<string, ToolDef> = {
 
 /**
  * Builds the harbormaster MCP server: one tool per agent-facing command in
- * `../commands`, sharing the same zod schemas as the CLI. Agents drive the
- * full schedule → dispatch → gate → release loop through these tools rather
- * than shelling out to the CLI.
+ * `../commands`, sharing the same zod schemas as the CLI (`../schemas`) as
+ * each tool's input schema, so the two surfaces can never drift on what
+ * counts as a valid payload. Kept separate from the stdio bootstrap in
+ * `./index` so the server (and its registered tools) can be constructed and
+ * exercised directly in tests, without standing up a real stdio transport.
+ *
+ * Unlike the CLI, an MCP server is a long-lived process handling many tool
+ * calls over one session, so commands backed by the shared hotspot manager
+ * (see `getHotspotManager` in `../commands`) will see leases persist across
+ * calls within that session.
  */
 export function createMcpServer(): McpServer {
   const server = new McpServer({ name: 'harbormaster', version: '0.1.0' })

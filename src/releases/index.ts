@@ -10,8 +10,13 @@ import type {
 
 export type { ManifestTicket, ReleaseManifest, ReleaseRecord, ReleaseStatus, CreateReleaseOptions }
 
+/** Minimal pool shape `ReleaseManager` depends on, so tests can inject a fake. */
 export type ReleasesPool = Pick<Pool, 'query'>
 
+/**
+ * Minimal Linear client shape `ReleaseManager` depends on for manifest
+ * building, kept narrow so tests can inject a fake instead of a full SDK client.
+ */
 export interface ReleaseLinearClient {
   listTeamIssues(
     teamId: string,
@@ -52,6 +57,14 @@ function toRecord(row: DBRow): ReleaseRecord {
   }
 }
 
+/**
+ * Manages Linear-planned releases: manifests, notes, and freeze windows.
+ *
+ * This is distinct from the older `release/` module, which ports git
+ * branch/tag mechanics — `ReleaseManager` is the Linear-aware planning layer
+ * on top of that. The pool and Linear client are both injected so this class
+ * can be tested without a real database or network access.
+ */
 export class ReleaseManager {
   private readonly pool: ReleasesPool
 
@@ -59,6 +72,7 @@ export class ReleaseManager {
     this.pool = pool
   }
 
+  /** Plans a new release by inserting a row in `'planning'` status. */
   async create(version: string, options: CreateReleaseOptions): Promise<ReleaseRecord> {
     const { branch, linearCycleId, freezeAt } = options
     const result = await this.pool.query<DBRow>(
@@ -70,6 +84,7 @@ export class ReleaseManager {
     return toRecord(result.rows[0])
   }
 
+  /** Fetches a release by id, or `null` if it doesn't exist. */
   async getRelease(releaseId: string): Promise<ReleaseRecord | null> {
     const result = await this.pool.query<DBRow>('SELECT * FROM releases WHERE id = $1', [
       releaseId,
@@ -77,6 +92,12 @@ export class ReleaseManager {
     return result.rows[0] ? toRecord(result.rows[0]) : null
   }
 
+  /**
+   * Updates a release's status. When transitioning to `'released'`, this
+   * also stamps `released_at = NOW()` in the same statement, so the
+   * release timestamp is always set atomically with the status change
+   * rather than relying on a separate call that could be skipped or race.
+   */
   async updateStatus(releaseId: string, status: ReleaseStatus): Promise<void> {
     const releasedClause = status === 'released' ? ', released_at = NOW()' : ''
     await this.pool.query(
@@ -85,6 +106,12 @@ export class ReleaseManager {
     )
   }
 
+  /**
+   * Sets the freeze cutoff and flips the release into `'frozen'` status.
+   * A freeze window is the cutoff after which no more tickets are planned
+   * into the release, giving the release a stable, auditable scope going
+   * into final QA and ship.
+   */
   async setFreezeWindow(releaseId: string, freezeAt: Date): Promise<void> {
     await this.pool.query(
       `UPDATE releases SET freeze_at = $1, status = 'frozen', updated_at = NOW() WHERE id = $2`,
@@ -92,6 +119,11 @@ export class ReleaseManager {
     )
   }
 
+  /**
+   * Returns true once `at` has reached the release's freeze cutoff
+   * (`at` defaults to now). Used to gate whether new tickets may still be
+   * planned into the release.
+   */
   async isInFreezeWindow(releaseId: string, at: Date = new Date()): Promise<boolean> {
     const result = await this.pool.query<{ freeze_at: Date | null }>(
       'SELECT freeze_at FROM releases WHERE id = $1',
@@ -102,6 +134,20 @@ export class ReleaseManager {
     return at >= new Date(freezeAt)
   }
 
+  /**
+   * Fetches the relevant Linear tickets for this release, maps them to
+   * {@link ManifestTicket}s, computes `summary.byStatus`/`summary.byPriority`
+   * rollups, persists the resulting manifest as JSON on the release row,
+   * and returns it. This is what ties a release back to ticketed,
+   * on-the-record work per the spec's provenance requirement — anyone
+   * auditing a release can see exactly which tickets it covers.
+   *
+   * @param releaseId - Release to build the manifest for.
+   * @param linearClient - Client used to fetch the team's tickets.
+   * @param teamId - Linear team to pull tickets from.
+   * @param labelFilter - Optional label allowlist; if omitted, all of the
+   *   team's tickets are included.
+   */
   async buildManifest(
     releaseId: string,
     linearClient: ReleaseLinearClient,
@@ -152,6 +198,15 @@ export class ReleaseManager {
     return manifest
   }
 
+  /**
+   * Renders release notes as markdown from an already-built manifest,
+   * bucketing tickets by label into Features/Fixes/Improvements/Other
+   * sections and linking to the ticket URL when present.
+   *
+   * Deliberately a pure function (no DB access) so notes can be previewed,
+   * diffed, or regenerated without touching the database — persisting the
+   * result is a separate, explicit step via {@link ReleaseManager.saveNotes}.
+   */
   generateNotes(manifest: ReleaseManifest): string {
     const { version, generatedAt, tickets, summary } = manifest
 
@@ -196,6 +251,7 @@ export class ReleaseManager {
     return lines.join('\n').trimEnd() + '\n'
   }
 
+  /** Persists previously generated release notes onto the release row. */
   async saveNotes(releaseId: string, notes: string): Promise<void> {
     await this.pool.query(
       `UPDATE releases SET notes = $1, updated_at = NOW() WHERE id = $2`,
@@ -203,6 +259,7 @@ export class ReleaseManager {
     )
   }
 
+  /** Lists releases newest first, optionally filtered to a single status. */
   async listReleases(status?: ReleaseStatus): Promise<ReleaseRecord[]> {
     if (status !== undefined) {
       const result = await this.pool.query<DBRow>(
@@ -218,6 +275,7 @@ export class ReleaseManager {
   }
 }
 
+/** Factory for {@link ReleaseManager}. */
 export function createReleaseManager(pool: ReleasesPool): ReleaseManager {
   return new ReleaseManager(pool)
 }

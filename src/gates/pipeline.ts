@@ -10,6 +10,13 @@ import type {
 import { resolvePolicy } from './policy'
 import { ScopeChecker } from './scope'
 
+/**
+ * Dependencies for a {@link GatePipeline}. The CI/QA/approval checks are
+ * injected callbacks rather than the pipeline reaching out to live
+ * infrastructure itself — `runQA` and `approve` are optional because not
+ * every policy requires those stages, and when a required stage has no
+ * runner configured it's recorded as `'skipped'` rather than failing.
+ */
 export interface GatePipelineOptions {
   checkCI: CICheckFn
   runQA?: QACheckFn
@@ -37,6 +44,13 @@ export class GatePipeline {
     this.approve = options.approve
   }
 
+  /**
+   * Runs a single change through scope → CI → QA → HITL, in that order.
+   * Stops at the first failing stage (later stages are never invoked, so a
+   * scope failure means CI/QA/HITL are never even attempted). QA and HITL
+   * are only run when the resolved policy requires them, and are recorded
+   * as `'skipped'` — not failed — when required but no runner was supplied.
+   */
   async run(input: GatePipelineInput): Promise<GatePipelineResult> {
     const policy = resolvePolicy(input.domains)
     const gates: GateResult[] = []
@@ -107,6 +121,7 @@ export class GatePipeline {
   }
 }
 
+/** Factory for {@link GatePipeline} with injectable CI/QA/approval callbacks. */
 export function createGatePipeline(options: GatePipelineOptions): GatePipeline {
   return new GatePipeline(options)
 }

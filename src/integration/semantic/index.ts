@@ -1,3 +1,11 @@
+/**
+ * Detects semantic conflicts between in-flight branches — cases where two
+ * branches each typecheck cleanly on their own but would break each other
+ * once combined (e.g. a signature change in one branch breaking a caller
+ * introduced by another). File-level locking can't catch this class of
+ * conflict because the conflicting lines never touch the same file.
+ */
+
 import type {
   BranchInput,
   BranchCheckResult,
@@ -36,7 +44,11 @@ export class SemanticConflictDetector {
     private readonly tsconfigPath?: string,
   ) {}
 
-  /** Run TypeScript typechecking in a single branch's worktree */
+  /**
+   * Runs `npx tsc --noEmit` inside the branch's worktree via the injectable
+   * {@link ExecFn} (allowing tests to stub out the actual process spawn) and
+   * parses the output into a structured result.
+   */
   async checkBranch(input: BranchInput): Promise<BranchCheckResult> {
     const start = Date.now()
     const projectFlag = this.tsconfigPath ? ` --project ${this.tsconfigPath}` : ''
@@ -73,7 +85,12 @@ export class SemanticConflictDetector {
     }
   }
 
-  /** Parse `tsc --noEmit` stdout into structured TypeScriptError objects */
+  /**
+   * Parses `tsc --noEmit` stdout into structured {@link TypeScriptError}
+   * objects, matching lines of the form
+   * `path/to/file.ts(line,col): error|warning TSxxxx: message`.
+   * Lines that don't match the pattern are ignored.
+   */
   parseTscOutput(output: string): TypeScriptError[] {
     const errors: TypeScriptError[] = []
 
@@ -182,7 +199,16 @@ export class SemanticConflictDetector {
   }
 }
 
-/** Default exec implementation using Node's child_process */
+/**
+ * Default {@link ExecFn} implementation, backed by Node's `child_process.exec`.
+ *
+ * Note: the caller's command (see {@link SemanticConflictDetector.checkBranch})
+ * appends `|| true` so the shell always exits 0. `tsc` exits non-zero whenever
+ * it reports errors, which would otherwise route output through Node's
+ * `error` callback argument instead of `stdout`/`stderr` — `|| true`
+ * guarantees the tsc output (the thing we actually want to parse) always
+ * lands in stdout regardless of tsc's own exit code.
+ */
 export function createDefaultExec(): ExecFn {
   return async (command: string, cwd: string): Promise<ExecResult> => {
     const { exec } = await import('child_process')
@@ -194,6 +220,7 @@ export function createDefaultExec(): ExecFn {
   }
 }
 
+/** Factory for a {@link SemanticConflictDetector} wired to the real filesystem and tsc. */
 export function createSemanticConflictDetector(tsconfigPath?: string): SemanticConflictDetector {
   return new SemanticConflictDetector(createDefaultExec(), tsconfigPath)
 }

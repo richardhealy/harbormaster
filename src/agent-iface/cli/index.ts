@@ -3,6 +3,13 @@ import 'dotenv/config'
 import { ZodError } from 'zod'
 import * as commands from '../commands'
 
+/**
+ * Single-shot CLI entry point: `harbormaster <namespace> <action> '<json>'`.
+ * Each invocation is its own process, so commands like hotspot leases are
+ * built fresh per call rather than persisting state across invocations
+ * (see `getHotspotManager` in `../commands`).
+ */
+
 interface Command {
   description: string
   run: (payload: unknown) => unknown | Promise<unknown>
@@ -90,13 +97,20 @@ function printHelp(): void {
   process.stdout.write(lines.join('\n') + '\n')
 }
 
+/** Captured outcome of a CLI invocation: exit code plus stdout/stderr text. */
 export interface CliResult {
   exitCode: number
   stdout: string
   stderr: string
 }
 
-/** Runs the CLI against an argv array and returns captured output instead of touching the real process. */
+/**
+ * Parses argv, dispatches to the matching command, and returns the result
+ * as data instead of writing to `process.stdout`/`process.stderr` or
+ * setting `process.exitCode` directly. Kept separate from `main()` below so
+ * the CLI's behavior can be exercised in tests by passing an argv array and
+ * asserting on the returned `CliResult`, without spawning a real process.
+ */
 export async function runCli(argv: string[]): Promise<CliResult> {
   if (argv.length === 0 || argv[0] === '--help' || argv[0] === '-h') {
     let stdout = ''

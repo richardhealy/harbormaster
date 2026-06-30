@@ -63,7 +63,17 @@ export class Scheduler {
     }
   }
 
-  /** Cluster tickets that exceed the merge threshold into single groups */
+  /**
+   * Cluster tickets into merge groups using union-find.
+   *
+   * Union-find is used (rather than a simple pairwise grouping) because merge
+   * relationships are transitive in effect: if ticket A merges with B, and B
+   * merges with C, A and C must end up in the same combined job even if A and
+   * C's surfaces don't directly overlap above the threshold. Union-find
+   * resolves these chains into connected components in near-linear time.
+   * Singleton clusters become single-ticket groups (decision is finalized
+   * later in `buildWaves`); clusters with 2+ tickets become 'merge' groups.
+   */
   private buildGroups(
     tickets: SchedulerTicket[],
     surfaces: Map<string, ImpactSurface>,
@@ -140,9 +150,18 @@ export class Scheduler {
   }
 
   /**
-   * Produce ordered waves from groups.
-   * Uses Kahn's topological sort: groups with overlap above sequenceThreshold
-   * have a "depends on previous" edge.
+   * Produce ordered waves from groups via Kahn's topological sort.
+   *
+   * Each pair of groups with overlap above `sequenceThreshold` gets a
+   * "depends on previous" edge (earlier group → later group, by input order).
+   * Kahn's algorithm processes groups in BFS layers of zero in-degree nodes,
+   * which naturally yields the wave structure: every group in a layer has had
+   * all its dependencies satisfied by prior layers, so layer N+1 only starts
+   * after all of layer N completes, while groups within the same layer have
+   * no ordering constraint between them and can run in parallel. Groups that
+   * end up alone in their wave are kept as 'sequence' (not relabeled
+   * 'parallel') since being alone doesn't mean they were overlap-free, only
+   * that nothing else lands in the same wave.
    */
   private buildWaves(
     groups: ScheduledGroup[],

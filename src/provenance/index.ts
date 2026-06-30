@@ -1,8 +1,14 @@
+/**
+ * Implements the spec's immutable audit log: every dispatch, branch, gate
+ * decision, and merge tied to a Linear ticket is recorded here so the
+ * fleet's activity can be reconstructed and audited after the fact.
+ */
 import type { AuditEvent, AuditEventType, PersistedAuditEvent, ProvenanceQuery } from './types'
 
 export type { AuditEvent, AuditEventType, PersistedAuditEvent, ProvenanceQuery }
 export { AUDIT_EVENT_TYPES } from './types'
 
+/** Minimal pool shape `ProvenanceRecorder` depends on, so tests can inject a fake. */
 export interface ProvenancePool {
   query(text: string, values?: unknown[]): Promise<{ rows: unknown[] }>
 }
@@ -29,9 +35,23 @@ function rowToEvent(row: RawAuditRow): PersistedAuditEvent {
   }
 }
 
+/**
+ * Records and queries the audit log. The pool is injected so this class can
+ * be tested without a real database.
+ *
+ * `record` is the only write path, and there is deliberately no
+ * update/delete — that append-only design is what makes this an audit
+ * trail rather than a mutable status field: once an event is recorded, it
+ * can't be altered or erased, so the history it builds up can be trusted.
+ */
 export class ProvenanceRecorder {
   constructor(private readonly pool: ProvenancePool) {}
 
+  /**
+   * Inserts a new event into `audit_log` and returns its generated id.
+   * This is the only way to add to the log; there is no corresponding
+   * update or delete method by design (see class docs).
+   */
   async record(event: AuditEvent): Promise<string> {
     const result = await this.pool.query(
       `INSERT INTO audit_log (event_type, payload, ticket_id, agent_id, actor)
@@ -48,6 +68,11 @@ export class ProvenanceRecorder {
     return (result.rows[0] as { id: string }).id
   }
 
+  /**
+   * Runs a parameterised SELECT against `audit_log` with optional
+   * `ticketId`/`agentId`/`eventType`/`since` filters, newest first.
+   * The convenience read helpers below are all built on top of this method.
+   */
   async query(params: ProvenanceQuery): Promise<PersistedAuditEvent[]> {
     const conditions: string[] = []
     const values: unknown[] = []
@@ -82,19 +107,31 @@ export class ProvenanceRecorder {
     return (result.rows as RawAuditRow[]).map(rowToEvent)
   }
 
+  /** Convenience wrapper over {@link ProvenanceRecorder.query} for a single ticket. */
   async queryByTicket(ticketId: string, limit = 100): Promise<PersistedAuditEvent[]> {
     return this.query({ ticketId, limit })
   }
 
+  /**
+   * Convenience wrapper over {@link ProvenanceRecorder.query} for a single
+   * dispatch. Dispatch ids are recorded as `agentId` on events, so this
+   * filters by that field.
+   */
   async queryByDispatch(dispatchId: string): Promise<PersistedAuditEvent[]> {
     return this.query({ agentId: dispatchId, limit: 500 })
   }
 
+  /**
+   * Returns the full audit trail for a ticket — every dispatch, gate
+   * decision, and merge recorded against it — up to a high limit, suitable
+   * for rendering a complete provenance history.
+   */
   async getTrail(ticketId: string): Promise<PersistedAuditEvent[]> {
     return this.query({ ticketId, limit: 1000 })
   }
 }
 
+/** Factory for {@link ProvenanceRecorder}. */
 export function createProvenanceRecorder(pool: ProvenancePool): ProvenanceRecorder {
   return new ProvenanceRecorder(pool)
 }

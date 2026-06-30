@@ -1,5 +1,7 @@
+/** How a queued PR should be merged once it clears the queue. */
 export type MergeMethod = 'merge' | 'rebase' | 'squash'
 
+/** Lifecycle state of a {@link QueueEntry}. */
 export type QueueEntryStatus =
   | 'queued'    // waiting in the queue
   | 'merging'   // currently being rebased / tested
@@ -7,6 +9,7 @@ export type QueueEntryStatus =
   | 'failed'    // rebase or CI failed
   | 'cancelled' // removed from queue
 
+/** A PR's tracked position/state within the merge queue. */
 export interface QueueEntry {
   /** Pull request number */
   prNumber: number
@@ -19,6 +22,11 @@ export interface QueueEntry {
   enqueuedAt: Date
 }
 
+/**
+ * Backend-agnostic interface for submitting PRs to a merge queue.
+ * Implemented by `GitHubMergeQueueAdapter`, which delegates to GitHub's
+ * native merge queue rather than harbormaster managing queue order itself.
+ */
 export interface QueueAdapter {
   /**
    * Enqueues a PR. For GitHub, this enables auto-merge, which adds the PR

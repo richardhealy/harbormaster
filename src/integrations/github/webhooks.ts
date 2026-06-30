@@ -1,5 +1,15 @@
 import type { App } from '@octokit/app'
 
+/**
+ * Wires up the GitHub webhook handlers that let harbormaster react to
+ * repository activity in (near) real time, rather than polling the GitHub
+ * API. These events are the trigger points for the rest of the system: a
+ * push to `main` indicates someone bypassed the merge queue, a merged PR
+ * marks queue work as landed, and a completed check suite reports CI
+ * results back into the gate pipeline.
+ *
+ * @param app - The GitHub App instance returned by `createGitHubApp`.
+ */
 export function registerWebhooks(app: App): void {
   // Enforce no direct pushes to main — agents must go through the queue
   app.webhooks.on('push', async ({ payload }) => {

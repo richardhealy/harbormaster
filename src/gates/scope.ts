@@ -1,5 +1,11 @@
 import type { ScopeCheckResult } from './types'
 
+/**
+ * Stage 1 of the gate pipeline: flags a diff that touched substantially
+ * more (or different) files than the impact estimator predicted, since
+ * large drift from the predicted surface is a signal the change went
+ * beyond its intended scope.
+ */
 export class ScopeChecker {
   /**
    * Compares the actual diff files against the predicted impact surface.

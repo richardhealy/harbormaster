@@ -29,12 +29,23 @@ export class Rerunner {
     private readonly git: SimpleGit,
   ) {}
 
-  /** True when another attempt is allowed under the configured limit */
+  /**
+   * Guards against an infinite re-run loop: a branch that keeps losing the
+   * race (rebase conflicts or CI failures on every attempt) must eventually
+   * be reported as a permanent failure rather than being redispatched forever.
+   */
   shouldRetry(attempt: number, maxAttempts = DEFAULT_MAX_ATTEMPTS): boolean {
     return attempt < maxAttempts
   }
 
-  /** Remove the worktree and (optionally) dequeue the PR. Errors are swallowed. */
+  /**
+   * Removes the failing worktree and (optionally) dequeues the PR.
+   *
+   * Errors from either step are swallowed — cleanup is best-effort and runs
+   * as part of the failure-recovery path itself, so a cleanup error must not
+   * block the re-run from proceeding (which would turn a transient failure
+   * into a stuck branch).
+   */
   async cleanup(dispatchId: string, prNumber?: number): Promise<void> {
     await this.worktrees.remove(dispatchId).catch(() => {})
     if (prNumber !== undefined) {
@@ -42,7 +53,10 @@ export class Rerunner {
     }
   }
 
-  /** Returns the current HEAD SHA of a branch in the main repository */
+  /**
+   * Resolves the current HEAD SHA of `branch` in the main repository — this
+   * becomes the new base the re-dispatched attempt rebases onto.
+   */
   async currentTip(branch: string): Promise<string> {
     return (await this.git.raw(['rev-parse', branch])).trim()
   }

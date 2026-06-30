@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (docs: TSDoc coverage)
+
+- Added TSDoc-style doc comments across the public surface of all 47 source files in `src/` — every exported class, interface, type, and function now documents intent and non-obvious behaviour (e.g. the three impact-confidence tiers, why hotspot leases are the 5% exception to lock-free scheduling, the rebase/CI/redispatch contract, the release.sh idempotency guards, why the gate pipeline takes agent-reported CI status instead of polling live infrastructure)
+- No logic, formatting, or behaviour changed; build, typecheck (pre-existing unrelated mock-typing error in `tests/releases/index.test.ts` excepted), lint, and the full 318-test suite all still pass
+
 ### Added — 2026-06-30 (M9)
 
 - M9 agent interface: `src/agent-iface/commands.ts` exposes the full agent loop as one function per operation — schedule planning, hotspot leases, the gate pipeline, provenance recording/querying, and release create/list/manifest/notes — validated by zod schemas shared across both surfaces (`src/agent-iface/schemas.ts`)

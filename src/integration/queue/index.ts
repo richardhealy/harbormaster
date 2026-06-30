@@ -2,7 +2,12 @@ import type { MergeMethod, QueueAdapter, QueueEntry, QueueEntryStatus } from './
 
 export type { MergeMethod, QueueEntry, QueueEntryStatus, QueueAdapter } from './types'
 
-// Minimal Octokit-like interface so the adapter can be tested without a real GitHub connection
+/**
+ * Narrows the real Octokit client down to the handful of methods this adapter
+ * needs (REST `request` and optional `graphql`). Depending on this minimal
+ * shape instead of the full Octokit type lets tests pass in lightweight fakes
+ * instead of wiring up real GitHub credentials.
+ */
 export interface OctokitLike {
   request<T = unknown>(
     route: string,
@@ -64,6 +69,12 @@ export class GitHubMergeQueueAdapter implements QueueAdapter {
     private readonly repo: string,
   ) {}
 
+  /**
+   * Enables auto-merge on the PR via the `enablePullRequestAutoMerge` GraphQL
+   * mutation, which is what actually places it in GitHub's merge queue when
+   * the target branch has merge-queue protection enabled. Records a local
+   * `QueueEntry` so subsequent status lookups don't need an API round trip.
+   */
   async enqueue(
     prNumber: number,
     mergeMethod: MergeMethod = 'squash',
@@ -93,6 +104,11 @@ export class GitHubMergeQueueAdapter implements QueueAdapter {
     return entry
   }
 
+  /**
+   * Disables auto-merge for the PR via the `disablePullRequestAutoMerge`
+   * mutation, removing it from the merge queue. No-ops if the PR isn't
+   * locally tracked as queued.
+   */
   async dequeue(prNumber: number): Promise<void> {
     if (!this.tracked.has(prNumber)) return
 
@@ -108,6 +124,11 @@ export class GitHubMergeQueueAdapter implements QueueAdapter {
     this.tracked.delete(prNumber)
   }
 
+  /**
+   * Returns the locally tracked entry for the PR if one exists; otherwise
+   * falls back to a GitHub REST call to check whether auto-merge is enabled,
+   * so status is still available for PRs queued outside of this process.
+   */
   async getStatus(prNumber: number): Promise<QueueEntry | null> {
     const local = this.tracked.get(prNumber)
     if (local) return local
@@ -129,6 +150,11 @@ export class GitHubMergeQueueAdapter implements QueueAdapter {
     }
   }
 
+  /**
+   * Lists open PRs with auto-merge enabled, preferring locally tracked entry
+   * data (e.g. `dispatchId`, webhook-updated status) over the bare API
+   * response when both are available.
+   */
   async listQueued(): Promise<QueueEntry[]> {
     const { data: prs } = await this.octokit.request<GitHubPullRequest[]>(
       'GET /repos/{owner}/{repo}/pulls',
@@ -150,7 +176,11 @@ export class GitHubMergeQueueAdapter implements QueueAdapter {
       })
   }
 
-  /** Update entry status — call this from webhook handlers (e.g. merge_group events) */
+  /**
+   * Updates the locally tracked status for a PR. GitHub doesn't expose a
+   * polling API for fine-grained merge-queue progress, so this is driven by
+   * incoming webhooks (e.g. `merge_group` events) rather than computed here.
+   */
   updateStatus(prNumber: number, status: QueueEntryStatus): void {
     const entry = this.tracked.get(prNumber)
     if (entry) entry.status = status

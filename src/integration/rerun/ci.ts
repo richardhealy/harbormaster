@@ -17,6 +17,10 @@ interface CheckRunsResponse {
   check_runs: GitHubCheckRun[]
 }
 
+// `neutral` and `skipped` are treated as passing: neither indicates the code
+// is broken, so they shouldn't block re-dispatch the way a real failure does.
+// `timed_out`, `cancelled`, and `action_required` are deliberately excluded —
+// they're surfaced as failures via the default branch of `aggregate` below.
 const PASSING_CONCLUSIONS = new Set(['success', 'neutral', 'skipped'])
 
 /**
@@ -31,6 +35,11 @@ export class CIChecker {
     private readonly repo: string,
   ) {}
 
+  /**
+   * Fetches check runs for `ref` and aggregates them into a single
+   * {@link CIResult}. See {@link aggregate} for how individual conclusions
+   * are rolled up into one status.
+   */
   async checkStatus(ref: string): Promise<CIResult> {
     const { data } = await this.octokit.request<CheckRunsResponse>(
       'GET /repos/{owner}/{repo}/commits/{ref}/check-runs',
@@ -48,6 +57,13 @@ export class CIChecker {
   }
 }
 
+/**
+ * Rolls a list of check runs up into a single {@link CIStatus}: any
+ * non-passing completed run fails the whole ref, an incomplete run makes it
+ * pending, and an empty list (no check runs configured) is reported as
+ * 'unknown' rather than 'success' so callers don't mistake "nothing ran" for
+ * "everything passed".
+ */
 function aggregate(checkRuns: CheckRunSummary[]): CIStatus {
   if (checkRuns.length === 0) return 'unknown'
 

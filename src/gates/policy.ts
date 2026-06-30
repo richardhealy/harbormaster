@@ -1,5 +1,10 @@
 import type { DomainPolicy, RiskLevel } from './types'
 
+/**
+ * Fallback policy used when a change touches no domain in {@link POLICY_TABLE}.
+ * Defaults to medium risk (CI + QA, no HITL) rather than the most lenient or
+ * strictest option, since an unrecognized domain is an unknown quantity.
+ */
 export const DEFAULT_POLICY: DomainPolicy = {
   domain: 'default',
   riskLevel: 'medium',
@@ -40,7 +45,10 @@ const RISK_ORDER: Record<RiskLevel, number> = { low: 0, medium: 1, high: 2 }
 
 /**
  * Resolves the strictest policy that applies to any of the given domains.
- * When none of the domains is recognised the DEFAULT_POLICY (medium risk) is
+ * A change touching both a low-risk domain (e.g. docs) and a high-risk one
+ * (e.g. db) must be gated as high-risk — the riskiest domain it touches
+ * determines the scrutiny it gets, not the average or the first match.
+ * When none of the domains is recognised, DEFAULT_POLICY (medium risk) is
  * returned; unknown domains within a mixed list are ignored.
  */
 export function resolvePolicy(domains: string[]): DomainPolicy {

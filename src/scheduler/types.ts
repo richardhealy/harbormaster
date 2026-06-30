@@ -1,5 +1,15 @@
 import type { ImpactSurface } from '../impact'
 
+/**
+ * How a group was placed in the dispatch plan, relative to other groups:
+ * - `merge` — tickets whose impact surfaces overlap above `mergeThreshold`
+ *   are combined into a single agent job so they aren't edited concurrently.
+ * - `sequence` — the group overlaps an earlier group above `sequenceThreshold`
+ *   (but not enough to merge), so it's placed in a later wave to run after
+ *   that earlier group completes.
+ * - `parallel` — the group has no meaningful overlap with others in its wave
+ *   and can safely run at the same time as them.
+ */
 export type ScheduleDecision = 'parallel' | 'sequence' | 'merge'
 
 /** A unit of work: one or more tickets dispatched as a single agent job */
@@ -24,6 +34,7 @@ export interface ScheduledGroup {
  */
 export type DispatchWave = ScheduledGroup[]
 
+/** Result of {@link Scheduler.plan}: the full ordered dispatch schedule for a batch of tickets. */
 export interface DispatchPlan {
   /** Ordered execution waves — groups within a wave run in parallel */
   waves: DispatchWave[]
@@ -33,15 +44,18 @@ export interface DispatchPlan {
   mergeCount: number
   /** Total ticket count across all groups */
   ticketCount: number
+  /** Timestamp the plan was generated */
   createdAt: Date
 }
 
+/** A ticket to be scheduled, as input to {@link Scheduler.plan}. */
 export interface SchedulerTicket {
   ticketId: string
   /** Lower value = higher priority; influences position within a wave */
   priority?: number
 }
 
+/** Tunable thresholds controlling how {@link Scheduler} groups and orders tickets. */
 export interface SchedulerConfig {
   /** Jaccard overlap above this threshold triggers a merge decision (default 0.5) */
   mergeThreshold: number
@@ -49,6 +63,7 @@ export interface SchedulerConfig {
   sequenceThreshold: number
 }
 
+/** Default thresholds used by {@link Scheduler} when no config is supplied. */
 export const DEFAULT_SCHEDULER_CONFIG: SchedulerConfig = {
   mergeThreshold: 0.5,
   sequenceThreshold: 0,

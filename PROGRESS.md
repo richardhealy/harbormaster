@@ -180,4 +180,16 @@
 
 ## Documentation
 
-*(Not yet started — will be seeded now that the spec is fully implemented)*
+| # | Deliverable | Status |
+|---|-------------|--------|
+| a | Doc comments / inline documentation across the public surface | ☑ Done |
+| b | API reference documentation (CLI + MCP command reference) | ☐ Not started |
+| c | Architecture dossier (`docs/architecture.md`) | ☐ Not started |
+| d | Integration guide(s) (`docs/integration.md`) | ☐ Not started |
+| e | Usage/how-to guides, `docs/` index, final `README.md` pass | ☐ Not started |
+
+### a — Doc comments (done)
+
+- [x] TSDoc-style `/** ... */` comments added across all 47 `src/` files: every exported class, interface, type alias, and function now has a doc comment
+- [x] Comments explain intent and non-obvious behaviour rather than restating names — e.g. the three impact-confidence tiers (1.0 explicit files / 0.6 labels / 0.3 keywords) in `impact/`, why union-find + Kahn's topo-sort together produce `merge`/`sequence`/`parallel` decisions in `scheduler/`, why hotspot leases are the declared 5% exception to otherwise lock-free scheduling in `hotspots/`, the rebase/CI-check/redispatch contract and `maxAttempts` guard in `integration/rerun/`, why `createDefaultExec` appends `|| true` in `integration/semantic/`, the `release.sh` idempotency guards in `release/tags.ts` and the three-way hotfix fan-out in `release/hotfix.ts`, why the gate pipeline takes agent-reported CI/QA/HITL results as input instead of polling live infrastructure in `gates/` and `agent-iface/`, why the audit log in `provenance/` is append-only, and why schemas are shared between the CLI and MCP surfaces in `agent-iface/`
+- [x] Verified comments-only: build (`npm run build`), full test suite (`npm test`, 318/318), and lint (`npm run lint`) all still pass; a pre-existing, unrelated mock-typing error in `tests/releases/index.test.ts` (surfaced only by `tsc --noEmit` against the test tree, not by the build or test run) predates this change

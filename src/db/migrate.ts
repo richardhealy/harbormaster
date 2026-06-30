@@ -1,7 +1,27 @@
+/**
+ * Minimal, dependency-free SQL migration runner.
+ *
+ * Applied migrations are tracked in a `schema_migrations` table keyed by
+ * file name (without extension), so re-running this function is idempotent
+ * and only executes migrations that haven't been applied yet.
+ */
 import { readdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import type { Pool } from 'pg'
 
+/**
+ * Applies all pending `.sql` migrations from `migrationsDir`, in ascending
+ * filename order (e.g. `001_initial.sql` before `002_...sql`), skipping any
+ * whose version is already recorded in `schema_migrations`.
+ *
+ * Each migration runs in its own transaction together with the bookkeeping
+ * insert, so a failing migration is rolled back in full and does not get
+ * marked as applied — the next run will retry it. Migrations already
+ * committed in prior runs are left untouched.
+ *
+ * @param pool - Connection pool used both to read migration state and to run each migration.
+ * @param migrationsDir - Directory containing `.sql` migration files.
+ */
 export async function runMigrations(pool: Pool, migrationsDir: string): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (

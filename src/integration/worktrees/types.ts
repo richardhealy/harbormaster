@@ -1,3 +1,4 @@
+/** Metadata describing a git worktree that harbormaster created for a dispatched task. */
 export interface WorktreeInfo {
   /** Absolute path to the worktree directory */
   path: string
@@ -9,6 +10,7 @@ export interface WorktreeInfo {
   headSha: string
 }
 
+/** Options for `WorktreeManager.create`. */
 export interface CreateWorktreeOptions {
   /** Dispatch ID — used as the worktree directory name */
   dispatchId: string

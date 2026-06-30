@@ -1,3 +1,8 @@
+/**
+ * Public surface of the gate pipeline: scope → CI → QA → HITL checks that
+ * gate a change before merge, with per-domain risk policy controlling which
+ * stages apply and how strict each one is.
+ */
 export type {
   RiskLevel,
   DomainPolicy,
