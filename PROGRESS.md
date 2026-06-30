@@ -6,7 +6,7 @@
 |---|-----------|--------|
 | M0 | Scaffold: control-plane, Postgres, GitHub App, release/, CI | ☑ Done |
 | M1 | Worktrees + queue | ☑ Done |
-| M2 | Optimistic re-run | ☐ Not started |
+| M2 | Optimistic re-run | ☑ Done |
 | M3 | Impact + scheduler | ☐ Not started |
 | M4 | Semantic conflicts | ☐ Not started |
 | M5 | Hotspot leases | ☐ Not started |
@@ -35,6 +35,25 @@
 - [x] CI configuration (`.github/workflows/ci.yml`)
 - [x] ESLint 9 flat config
 - [x] `PROGRESS.md`, `README.md`, `CHANGELOG.md`
+
+### M2 — Optimistic re-run (done)
+
+- [x] `src/integration/rerun/rebase.ts` — `Rebaser` class
+  - `rebase(worktreePath, newBase)`: runs `git rebase <newBase>` in the worktree via a per-directory `GitFactory`
+  - On success: returns `{ outcome: 'success', headSha }`
+  - On conflict: collects unmerged files via `diff --name-only --diff-filter=U`, aborts, returns `{ outcome: 'conflict', conflictFiles }`
+  - On unexpected error: aborts the rebase and returns `{ outcome: 'error', error }`
+- [x] `src/integration/rerun/ci.ts` — `CIChecker` class
+  - `checkStatus(ref)`: queries `GET /repos/{owner}/{repo}/commits/{ref}/check-runs`
+  - Aggregates to `'success' | 'failure' | 'pending' | 'unknown'`
+  - `neutral` and `skipped` conclusions treated as passing; `timed_out`, `cancelled`, `action_required` as failure
+- [x] `src/integration/rerun/index.ts` — `Rerunner` class
+  - `shouldRetry(attempt, maxAttempts?)`: guard against infinite retry loops
+  - `cleanup(dispatchId, prNumber?)`: removes worktree and dequeues PR; errors swallowed
+  - `currentTip(branch)`: resolves HEAD SHA of a branch in the main repo
+  - `handleFailure(options, redispatch)`: full orchestration — cleanup → get new tip → call redispatch callback → create new worktree; returns `{ exhausted: true }` on limit
+- [x] `src/integration/rerun/types.ts` — `RebaseResult`, `CIResult`, `RerunOptions`, `RerunResult`, `RedispatchFn` types
+- [x] 27 unit tests; total test count 90
 
 ### M1 — Worktrees + queue (done)
 
