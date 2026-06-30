@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M6)
+
+- M6 gate pipeline: `GatePipeline` (`src/gates/`) evaluates changes through four sequential stages — scope drift, CI, QA, and HITL — using per-domain policy; `checkScope` computes `driftRatio = unexpectedFiles / totalActual` against a configurable threshold; `requireHITL: true` domains (db, release, hotspots) always stop for human approval while `docs` and medium-risk domains auto-merge on green CI; each stage returns a `GateDecision` record (outcome, reason, timestamp, approver) and the pipeline's `GateResult` indicates `canMerge` and `blockedAt`; all function dependencies (CI status, QA checks, HITL resolver) are injectable for deterministic testing; `createGatePipeline` ships five built-in domain policies
+- 39 new unit tests; total test count 214
+
 ### Added — 2026-06-30 (M5)
 
 - M5 hotspot leases: `HotspotLeaseManager` (`src/hotspots/`) enforces advisory leases on declared hotspots — files or directories that are too costly to re-work after a collision (database migrations, shared API contracts, etc.); `register` declares a hotspot with glob patterns and a reason; `check` detects overlaps without acquiring a lock; `acquire` grants the lease when free, returns `'blocked'` with the holder's lease when taken, or `'not-required'` when the files touch no hotspot; `release` and `releaseByHolder` free leases; `listActive` / `pruneExpired` manage TTL-based expiry; `matchesPattern` supports exact, directory-prefix (`/`), single-segment (`*`), and cross-segment (`**`) glob patterns; the rest of the repo remains entirely lock-free

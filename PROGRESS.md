@@ -10,7 +10,7 @@
 | M3 | Impact + scheduler | ☑ Done |
 | M4 | Semantic conflicts | ☑ Done |
 | M5 | Hotspot leases | ☑ Done |
-| M6 | Gates | ☐ Not started |
+| M6 | Gates | ☑ Done |
 | M7 | Linear + provenance | ☐ Not started |
 | M8 | Releases | ☐ Not started |
 | M9 | Agent interface | ☐ Not started |
@@ -88,6 +88,21 @@
   - `matchesPattern(filePath, pattern)`: exported glob matcher supporting exact, directory-prefix (`/`), single-segment (`*`), and cross-segment (`**`) patterns; `**/` makes the directory prefix optional so root-level files are matched
 - [x] `createHotspotLeaseManager(hotspots?, clock?)` factory with injectable clock for deterministic testing
 - [x] 30 unit tests covering pattern matching, check, acquire, release, TTL/expiry, glob patterns, and the lock-free guarantee for non-hotspot files; total test count 175
+
+### M6 — Gates (done)
+
+- [x] `src/gates/types.ts` — `RiskLevel`, `GateStage`, `GateOutcome`, `DomainPolicy`, `ScopeCheckResult`, `GateDecision`, `GateResult`, `GateRunOptions`, injectable function types (`CIStatusFn`, `QACheckFn`, `HITLApprovalFn`), `DEFAULT_DOMAIN_POLICY`, `BUILTIN_POLICIES`
+- [x] `src/gates/index.ts` — `checkScope` (pure scope-drift calculation) + `GatePipeline` class
+  - `registerPolicy(policy)` / `getPolicy(domain)`: per-domain policy management with fallback to `DEFAULT_DOMAIN_POLICY`
+  - `evaluate(options)`: runs all four stages in sequence
+    - **Scope**: computes `driftRatio = unexpectedFiles / totalActual`; fails if drift > threshold; short-circuits on fail
+    - **CI**: resolves status via injectable `CIStatusFn`; `pending` → `awaiting`; `failure`/`unknown` → fails and short-circuits
+    - **QA**: delegates to injectable `QACheckFn`; absent function → `awaiting`; fail short-circuits
+    - **HITL**: delegates to injectable `HITLApprovalFn`; absent → `awaiting`; requires human to proceed
+    - All skipped stages are recorded with `outcome: 'skipped'`
+  - `createGatePipeline(extraPolicies?, clock?)` factory
+  - Built-in policies: `db` / `release` / `hotspots` (high-risk, HITL required), `docs` (low-risk, auto-merge), `integration/queue` (medium)
+- [x] 39 unit tests; total test count 214
 
 ### M4 — Semantic conflicts (done)
 

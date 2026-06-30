@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**M4 Semantic Conflict Detection complete.** M0–M4 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**M6 Gate Pipeline complete.** M0–M6 done (214 tests, all passing). See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
@@ -32,12 +32,16 @@ src/
   release/          # ported release.sh lifecycle (semver, branches, tags, hotfix, sync)
   db/               # Postgres connection, migration runner, TypeScript schema types
     migrations/     # SQL migration files (applied in order)
+  gates/            # GatePipeline — scope / CI / QA / HITL, per-domain policy
+  hotspots/         # HotspotLeaseManager — advisory leases for un-mergeable paths
   integrations/
     github/         # GitHub App (webhook registration, push enforcement)
     linear/         # Linear API client stub (M7)
   config.ts         # Zod-validated config from environment
   index.ts          # Control-plane entry point
 tests/
+  gates/            # Unit tests for gate pipeline (39 tests)
+  hotspots/         # Unit tests for hotspot lease manager (30 tests)
   impact/           # Unit tests for impact estimator (19 tests)
   scheduler/        # Unit tests for conflict-aware scheduler (15 tests)
   integration/      # Unit tests for worktrees (13), queue (15), rerun (27), semantic (21)
@@ -183,6 +187,46 @@ Decision rules (by Jaccard overlap score):
 - `0 < overlap < mergeThreshold` → **sequence**: run one ticket after the other
 - `overlap == 0` → **parallel**: safe to run at the same time
 
+## Gate pipeline (`src/gates/`)
+
+Every change clears a configurable sequence of gates before merge, with per-domain policy controlling which stages are required:
+
+| Stage | What it checks |
+|-------|----------------|
+| `scope` | Diff must not drift too far from the ticket's estimated impact surface |
+| `ci` | CI must be green on the rebased tip (also catches semantic conflicts) |
+| `qa` | Automated QA checks or eval must pass |
+| `hitl` | Human approver must sign off (required for high-risk domains) |
+
+```typescript
+import { createGatePipeline } from './src/gates'
+
+const pipeline = createGatePipeline()
+
+const result = await pipeline.evaluate({
+  dispatchId: 'disp-1',
+  ticketId: 'ENG-42',
+  domain: 'db',                        // selects the high-risk DB policy (requireHITL: true)
+  expectedFiles: ['src/db/migrations/003.sql'],
+  actualFiles: ['src/db/migrations/003.sql'],
+  headRef: 'sha-after-rebase',
+  ciStatus: async (ref) => checkCIStatus(ref),   // green/failure/pending/unknown
+  qaCheck: async (id) => runQAChecks(id),
+  hitlApproval: async (id, ticket) => awaitApproval(id, ticket),
+})
+
+// result.canMerge        — true only when all required stages passed
+// result.blockedAt       — which stage is blocking (if any)
+// result.decisions       — full audit trail of every gate decision
+```
+
+Policies ship with sensible defaults:
+- **`db`** / **`release`** / **`hotspots`** — `risk: 'high'`; strict scope threshold; CI + HITL required.
+- **`docs`** — `risk: 'low'`; scope check skipped; auto-merges on green CI.
+- **`integration/queue`** and unlisted domains — `risk: 'medium'`; CI required; no HITL.
+
+Register custom policies with `pipeline.registerPolicy(policy)`.
+
 ## Next milestone
 
-**M4 — Semantic conflicts:** cross-branch typecheck/build detection.
+**M7 — Linear + provenance:** ticket sync, immutable audit log.
