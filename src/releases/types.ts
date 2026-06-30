@@ -1,5 +1,7 @@
+/** Lifecycle stage of a release: `planning` → `in_progress` → optional `frozen` → `released`, or `cancelled` at any point. */
 export type ReleaseStatus = 'planning' | 'in_progress' | 'frozen' | 'released' | 'cancelled'
 
+/** A Linear ticket as captured in a release manifest — a flattened, storage-friendly projection of {@link LinearTicket}. */
 export interface ManifestTicket {
   id: string
   identifier: string
@@ -12,6 +14,7 @@ export interface ManifestTicket {
   url?: string
 }
 
+/** Snapshot of everything shipping in a release, generated from Linear at {@link ReleaseManager.buildManifest} time. */
 export interface ReleaseManifest {
   releaseId: string
   version: string
@@ -25,6 +28,7 @@ export interface ReleaseManifest {
   }
 }
 
+/** A release row as persisted in Postgres. */
 export interface ReleaseRecord {
   id: string
   version: string
@@ -39,6 +43,7 @@ export interface ReleaseRecord {
   updatedAt: Date
 }
 
+/** Inputs to {@link ReleaseManager.create}; `version` is passed separately since it's usually derived via {@link bumpFromLatestTag}. */
 export interface CreateReleaseOptions {
   branch: string
   linearCycleId?: string

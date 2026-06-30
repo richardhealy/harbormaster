@@ -1,15 +1,18 @@
 import type { LinearClient, LinearTicket } from './index'
 
+/** Subset of `pg.Pool` the syncer needs; keeps it testable without a real database. */
 export interface SyncPool {
   query(text: string, values: unknown[]): Promise<unknown>
 }
 
+/** Mirrors Linear tickets into the local `tickets` table so the scheduler and gates can query them without a live API call. */
 export class TicketSyncer {
   constructor(
     private readonly pool: SyncPool,
     private readonly linear: LinearClient,
   ) {}
 
+  /** Upserts a single ticket by id, keyed on the Linear ticket id. */
   async syncTicket(ticket: LinearTicket): Promise<void> {
     await this.pool.query(
       `INSERT INTO tickets (id, title, status, priority, labels, assignee_id, linear_data, updated_at)
@@ -34,6 +37,11 @@ export class TicketSyncer {
     )
   }
 
+  /**
+   * Fetches all of a team's tickets from Linear and upserts each one
+   * independently — a single failing row doesn't abort the sweep, it's
+   * counted in `errors` so the caller can decide whether to retry.
+   */
   async syncTeamTickets(
     teamId: string,
     options: { limit?: number } = {},

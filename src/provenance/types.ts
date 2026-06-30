@@ -1,3 +1,4 @@
+/** Every event type the fleet may record. Adding a new kind of tracked action means adding it here. */
 export const AUDIT_EVENT_TYPES = [
   'dispatch.created',
   'dispatch.rebase',
@@ -19,6 +20,7 @@ export const AUDIT_EVENT_TYPES = [
 
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number]
 
+/** One fact to record before it's written to the database: what happened, to what ticket/agent, and who did it. */
 export interface AuditEvent {
   eventType: AuditEventType
   payload: Record<string, unknown>
@@ -27,11 +29,13 @@ export interface AuditEvent {
   actor: string
 }
 
+/** An {@link AuditEvent} as read back from the immutable `audit_log` table. */
 export interface PersistedAuditEvent extends AuditEvent {
   id: string
   createdAt: Date
 }
 
+/** Optional filters for {@link ProvenanceRecorder.query}; all fields are AND-ed together. */
 export interface ProvenanceQuery {
   ticketId?: string
   agentId?: string

@@ -3,6 +3,11 @@ import 'dotenv/config'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createMcpServer } from './server'
 
+/**
+ * Process entry point for `npm run mcp`: connects the harbormaster MCP
+ * server to stdio so an agent runtime (Claude Code, Cursor, etc.) can
+ * launch it as a subprocess tool server.
+ */
 async function main(): Promise<void> {
   const server = createMcpServer()
   const transport = new StdioServerTransport()

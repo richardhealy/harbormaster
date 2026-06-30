@@ -3,6 +3,7 @@ import type { LinearTicket, LinearLabel, LinearWorkflowState, LinearIssueFilter 
 export type { LinearTicket, LinearWorkflowState, LinearIssueFilter }
 export type { LinearState, LinearLabel, LinearUser } from './types'
 
+/** Minimal subset of the `fetch` signature the client needs; injectable so tests can stub HTTP. */
 export type FetchFn = (
   url: string,
   init: RequestInit,
@@ -22,6 +23,12 @@ function normaliseTicket(raw: RawIssue): LinearTicket {
   return { ...raw, labels }
 }
 
+/**
+ * Thin client over Linear's GraphQL API. Every method throws on a non-OK
+ * HTTP response or a GraphQL `errors` array, so callers don't need to
+ * separately check response shape. `fetchFn` defaults to the global `fetch`
+ * but is injectable for deterministic testing.
+ */
 export class LinearClient {
   private readonly apiKey: string
   private readonly fetchFn: FetchFn
@@ -33,6 +40,7 @@ export class LinearClient {
     this.url = url
   }
 
+  /** Issues a single GraphQL request and unwraps `data`, throwing on transport or GraphQL errors. */
   private async gql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
     const res = await this.fetchFn(this.url, {
       method: 'POST',
@@ -58,6 +66,7 @@ export class LinearClient {
     return body.data
   }
 
+  /** Fetches one issue by id or human-readable identifier (e.g. `ENG-123`); `null` if not found. */
   async getTicket(identifier: string): Promise<LinearTicket | null> {
     const data = await this.gql<{ issue: RawIssue | null }>(
       `query GetIssue($identifier: String!) {
@@ -73,6 +82,7 @@ export class LinearClient {
     return data.issue ? normaliseTicket(data.issue) : null
   }
 
+  /** Moves a ticket to a different workflow state (see {@link getWorkflowStates} for valid ids). */
   async updateTicketStatus(ticketId: string, stateId: string): Promise<void> {
     await this.gql<{ issueUpdate: { success: boolean } }>(
       `mutation UpdateIssue($id: String!, $stateId: String!) {
@@ -82,6 +92,7 @@ export class LinearClient {
     )
   }
 
+  /** Lists a team's issues, newest-first server-side ordering, optionally filtered (defaults to 50). */
   async listTeamIssues(
     teamId: string,
     options: { limit?: number; filter?: LinearIssueFilter } = {},
@@ -105,6 +116,7 @@ export class LinearClient {
     return (data.team?.issues?.nodes ?? []).map(normaliseTicket)
   }
 
+  /** Returns every workflow state configured for a team, used to resolve ids for {@link updateTicketStatus}. */
   async getWorkflowStates(teamId: string): Promise<LinearWorkflowState[]> {
     const data = await this.gql<{ workflowStates: { nodes: LinearWorkflowState[] } }>(
       `query GetWorkflowStates($teamId: String!) {

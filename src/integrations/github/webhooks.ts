@@ -1,5 +1,11 @@
 import type { App } from '@octokit/app'
 
+/**
+ * Registers the webhook handlers that back the spec's "no direct main
+ * pushes" guarantee and basic merge/CI observability. These currently log;
+ * a production deployment would route the push-to-main case into a
+ * provenance event or a branch-protection enforcement action instead.
+ */
 export function registerWebhooks(app: App): void {
   // Enforce no direct pushes to main — agents must go through the queue
   app.webhooks.on('push', async ({ payload }) => {

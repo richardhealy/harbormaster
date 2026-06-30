@@ -12,6 +12,7 @@ export type { ManifestTicket, ReleaseManifest, ReleaseRecord, ReleaseStatus, Cre
 
 export type ReleasesPool = Pick<Pool, 'query'>
 
+/** Subset of {@link LinearClient} the release manager needs, kept narrow so tests can stub it without the full client. */
 export interface ReleaseLinearClient {
   listTeamIssues(
     teamId: string,
@@ -52,6 +53,12 @@ function toRecord(row: DBRow): ReleaseRecord {
   }
 }
 
+/**
+ * Manages Linear-planned releases: creation, status transitions, freeze
+ * windows, and manifest/notes generation from the tickets assigned to a
+ * release. All database access goes through the injected {@link ReleasesPool}
+ * so the manager is testable without a live Postgres instance.
+ */
 export class ReleaseManager {
   private readonly pool: ReleasesPool
 
@@ -59,6 +66,7 @@ export class ReleaseManager {
     this.pool = pool
   }
 
+  /** Inserts a new release in `planning` status. */
   async create(version: string, options: CreateReleaseOptions): Promise<ReleaseRecord> {
     const { branch, linearCycleId, freezeAt } = options
     const result = await this.pool.query<DBRow>(
@@ -70,6 +78,7 @@ export class ReleaseManager {
     return toRecord(result.rows[0])
   }
 
+  /** Fetches one release by id, or `null` if it doesn't exist. */
   async getRelease(releaseId: string): Promise<ReleaseRecord | null> {
     const result = await this.pool.query<DBRow>('SELECT * FROM releases WHERE id = $1', [
       releaseId,
@@ -77,6 +86,7 @@ export class ReleaseManager {
     return result.rows[0] ? toRecord(result.rows[0]) : null
   }
 
+  /** Transitions a release's status; reaching `'released'` also stamps `released_at`. */
   async updateStatus(releaseId: string, status: ReleaseStatus): Promise<void> {
     const releasedClause = status === 'released' ? ', released_at = NOW()' : ''
     await this.pool.query(
@@ -85,6 +95,7 @@ export class ReleaseManager {
     )
   }
 
+  /** Sets the freeze cutoff and flips status to `'frozen'`. */
   async setFreezeWindow(releaseId: string, freezeAt: Date): Promise<void> {
     await this.pool.query(
       `UPDATE releases SET freeze_at = $1, status = 'frozen', updated_at = NOW() WHERE id = $2`,
@@ -92,6 +103,7 @@ export class ReleaseManager {
     )
   }
 
+  /** True once `at` (default: now) reaches the release's `freeze_at`; `false` if no freeze window is set. */
   async isInFreezeWindow(releaseId: string, at: Date = new Date()): Promise<boolean> {
     const result = await this.pool.query<{ freeze_at: Date | null }>(
       'SELECT freeze_at FROM releases WHERE id = $1',
@@ -102,6 +114,12 @@ export class ReleaseManager {
     return at >= new Date(freezeAt)
   }
 
+  /**
+   * Fetches the release's tickets from Linear (optionally filtered by
+   * label), flattens them into {@link ManifestTicket} rows, computes
+   * status/priority summary counts, persists the manifest to the release
+   * row, and returns it.
+   */
   async buildManifest(
     releaseId: string,
     linearClient: ReleaseLinearClient,
@@ -152,6 +170,12 @@ export class ReleaseManager {
     return manifest
   }
 
+  /**
+   * Pure function: renders release notes markdown from a manifest, bucketing
+   * tickets into Features / Fixes / Improvements / Other by label keyword.
+   * Takes no database dependency so it's trivially testable and reusable
+   * for a dry-run preview before {@link saveNotes} persists the result.
+   */
   generateNotes(manifest: ReleaseManifest): string {
     const { version, generatedAt, tickets, summary } = manifest
 
@@ -196,6 +220,7 @@ export class ReleaseManager {
     return lines.join('\n').trimEnd() + '\n'
   }
 
+  /** Persists release notes (typically the output of {@link generateNotes}, possibly hand-edited) to the release row. */
   async saveNotes(releaseId: string, notes: string): Promise<void> {
     await this.pool.query(
       `UPDATE releases SET notes = $1, updated_at = NOW() WHERE id = $2`,
@@ -203,6 +228,7 @@ export class ReleaseManager {
     )
   }
 
+  /** Lists releases newest-first, optionally filtered to one status. */
   async listReleases(status?: ReleaseStatus): Promise<ReleaseRecord[]> {
     if (status !== undefined) {
       const result = await this.pool.query<DBRow>(

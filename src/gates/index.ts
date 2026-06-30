@@ -1,3 +1,8 @@
+/**
+ * Public surface of the gate pipeline: scope / CI / QA / HITL stages with
+ * per-domain risk policy. See {@link GatePipeline} for the orchestration
+ * and {@link resolvePolicy} for how a change's domains map to a policy.
+ */
 export type {
   RiskLevel,
   DomainPolicy,

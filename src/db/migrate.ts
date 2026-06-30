@@ -2,6 +2,13 @@ import { readdir, readFile } from 'fs/promises'
 import { join } from 'path'
 import type { Pool } from 'pg'
 
+/**
+ * Applies every `.sql` file in `migrationsDir` that hasn't already been
+ * recorded in `schema_migrations`, in filename order. Each migration runs
+ * inside its own transaction (rolled back on error) so a failing migration
+ * never leaves the schema half-applied, and re-running the function is a
+ * no-op for migrations already applied.
+ */
 export async function runMigrations(pool: Pool, migrationsDir: string): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (

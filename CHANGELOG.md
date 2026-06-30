@@ -4,6 +4,18 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (docs: TSDoc coverage)
+
+- Added TSDoc comments to every previously-undocumented exported class,
+  function, and type across the public surface — `config`, `db`, `gates`
+  (re-exports), the control-plane entry point, the GitHub and Linear
+  integrations, `provenance`, `release`/`releases`, and the MCP entry point
+  — focusing on intent and non-obvious behaviour rather than restating
+  signatures
+- First Documentation-phase increment; seeded the Documentation checklist
+  in `PROGRESS.md`
+- Build, lint, and the full 318-test suite verified green
+
 ### Added — 2026-06-30 (M9)
 
 - M9 agent interface: `src/agent-iface/commands.ts` exposes the full agent loop as one function per operation — schedule planning, hotspot leases, the gate pipeline, provenance recording/querying, and release create/list/manifest/notes — validated by zod schemas shared across both surfaces (`src/agent-iface/schemas.ts`)

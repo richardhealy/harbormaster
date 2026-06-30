@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+/**
+ * Environment schema for the control-plane process. GitHub and Linear
+ * credentials are optional so the service can boot in dev/test with those
+ * integrations disabled rather than failing to start.
+ */
 const ConfigSchema = z.object({
   DATABASE_URL: z.string().default('postgresql://localhost:5432/harbormaster'),
   GITHUB_APP_ID: z.string().optional(),
@@ -12,6 +17,10 @@ const ConfigSchema = z.object({
 
 export type Config = z.infer<typeof ConfigSchema>
 
+/**
+ * Parses and validates `process.env` against {@link ConfigSchema}. Throws a
+ * zod error if a required value is missing or malformed.
+ */
 export function loadConfig(): Config {
   return ConfigSchema.parse(process.env)
 }

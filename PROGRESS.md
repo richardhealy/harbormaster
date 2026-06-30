@@ -180,4 +180,26 @@
 
 ## Documentation
 
-*(Not yet started — will be seeded now that the spec is fully implemented)*
+| # | Deliverable | Status |
+|---|-------------|--------|
+| a | Doc comments (TSDoc) across the public surface | ☑ Done |
+| b | API reference documentation (CLI/MCP command surface) | ☐ Not started |
+| c | Architecture dossier (`docs/architecture.md`) | ☐ Not started |
+| d | Integration guide(s) (`docs/integration.md`) | ☐ Not started |
+| e | Usage/how-to guides, `docs/` index, final README pass | ☐ Not started |
+
+### a — Doc comments (done)
+
+- [x] Added TSDoc (`/** ... */`) to every previously-undocumented exported
+  class, function, and type across the public surface: `config.ts`, `db/`
+  (`index.ts`, `migrate.ts`), `gates/index.ts`, `index.ts`,
+  `integrations/github/` (`index.ts`, `webhooks.ts`), `integrations/linear/`
+  (`index.ts`, `sync.ts`, `types.ts`), `provenance/` (`index.ts`,
+  `types.ts`), `release/index.ts`, `release/semver.ts`, `releases/`
+  (`index.ts`, `types.ts`), `agent-iface/mcp/index.ts`
+- [x] Comments explain intent and non-obvious behaviour (singleton pool
+  rationale, transaction-per-migration safety, why GitHub App init returns
+  `null` instead of throwing, audit log immutability, freeze-window
+  semantics) rather than restating signatures
+- [x] `npm run build`, `npm run lint`, and the full test suite (318 tests)
+  verified green after the change

@@ -3,6 +3,7 @@ import type { AuditEvent, AuditEventType, PersistedAuditEvent, ProvenanceQuery }
 export type { AuditEvent, AuditEventType, PersistedAuditEvent, ProvenanceQuery }
 export { AUDIT_EVENT_TYPES } from './types'
 
+/** Subset of `pg.Pool` the recorder needs; keeps it testable without a real database. */
 export interface ProvenancePool {
   query(text: string, values?: unknown[]): Promise<{ rows: unknown[] }>
 }
@@ -29,9 +30,15 @@ function rowToEvent(row: RawAuditRow): PersistedAuditEvent {
   }
 }
 
+/**
+ * Append-only audit trail: every dispatch, gate decision, merge, and
+ * release ties back to a ticket and an agent through this class. Rows are
+ * never updated or deleted by application code — `record` only inserts.
+ */
 export class ProvenanceRecorder {
   constructor(private readonly pool: ProvenancePool) {}
 
+  /** Inserts one audit row and returns its generated id. */
   async record(event: AuditEvent): Promise<string> {
     const result = await this.pool.query(
       `INSERT INTO audit_log (event_type, payload, ticket_id, agent_id, actor)
@@ -48,6 +55,7 @@ export class ProvenanceRecorder {
     return (result.rows[0] as { id: string }).id
   }
 
+  /** Builds a parameterised `SELECT` from whichever filters are set in `params`; defaults to the latest 100 rows. */
   async query(params: ProvenanceQuery): Promise<PersistedAuditEvent[]> {
     const conditions: string[] = []
     const values: unknown[] = []
@@ -82,14 +90,17 @@ export class ProvenanceRecorder {
     return (result.rows as RawAuditRow[]).map(rowToEvent)
   }
 
+  /** Convenience wrapper over {@link query} for all events tied to a ticket. */
   async queryByTicket(ticketId: string, limit = 100): Promise<PersistedAuditEvent[]> {
     return this.query({ ticketId, limit })
   }
 
+  /** Convenience wrapper over {@link query} for all events tied to a dispatch/agent run. */
   async queryByDispatch(dispatchId: string): Promise<PersistedAuditEvent[]> {
     return this.query({ agentId: dispatchId, limit: 500 })
   }
 
+  /** Full history for a ticket, in descending time order — the audit trail shown for "what happened to this ticket". */
   async getTrail(ticketId: string): Promise<PersistedAuditEvent[]> {
     return this.query({ ticketId, limit: 1000 })
   }
