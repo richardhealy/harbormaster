@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M8)
+
+- M8 releases: `ReleaseManager` (`src/releases/`) manages Linear-planned releases end-to-end — `create` inserts a release record (version, branch, optional `linearCycleId` and `freezeAt`); `buildManifest` fetches tickets from Linear via injectable `ReleaseLinearClient`, maps them to `ManifestTicket[]`, computes summary counts by status and priority, and persists the manifest to the `releases` table; `generateNotes` is a pure function that categories tickets by label into Features / Fixes / Improvements / Other sections and renders markdown links when a ticket has a URL; `setFreezeWindow` sets `freeze_at` and flips status to `'frozen'`; `isInFreezeWindow` compares the current time to `freeze_at`; `updateStatus` stamps `released_at = NOW()` when status reaches `'released'`; `listReleases` supports optional status filtering ordered by `created_at DESC`; all database and Linear dependencies are injected for deterministic testing
+- 40 new unit tests; total test count 292
+
 ### Added — 2026-06-30 (M7)
 
 - M7 Linear + provenance: `LinearClient` (`src/integrations/linear/`) implements the full Linear GraphQL API — `getTicket`, `updateTicketStatus`, `listTeamIssues`, and `getWorkflowStates` — with an injectable `FetchFn` for deterministic testing; labels are normalised from GraphQL connection shape (`{ nodes: [] }`) to a flat array

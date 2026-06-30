@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**M6 Gate Pipeline complete.** M0–M6 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**M8 Releases complete.** M0–M8 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
@@ -34,18 +34,20 @@ src/
   release/          # ported release.sh lifecycle (semver, branches, tags, hotfix, sync)
   db/               # Postgres connection, migration runner, TypeScript schema types
     migrations/     # SQL migration files (applied in order)
+  releases/         # ReleaseManager — Linear-planned releases, manifests, notes, freeze windows
   integrations/
     github/         # GitHub App (webhook registration, push enforcement)
-    linear/         # Linear API client stub (M7)
+    linear/         # Linear API client + TicketSyncer
   config.ts         # Zod-validated config from environment
   index.ts          # Control-plane entry point
 tests/
   gates/            # Unit tests for gate pipeline (37 tests)
   hotspots/         # Unit tests for hotspot leases (30 tests)
   impact/           # Unit tests for impact estimator (19 tests)
+  releases/         # Unit tests for release manager (40 tests)
   scheduler/        # Unit tests for conflict-aware scheduler (15 tests)
   integration/      # Unit tests for worktrees (13), queue (15), rerun (27), semantic (21)
-  release/          # Unit tests for the release module (35 tests)
+  release/          # Unit tests for the git release lifecycle module (35 tests)
 .github/
   workflows/
     ci.yml          # Typecheck → lint → build → test on every push/PR
@@ -238,6 +240,45 @@ const result = await pipeline.run({
 // result.gates  → [{stage:'scope',status:'pass'}, {stage:'ci',status:'pass'}, {stage:'qa',status:'pass'}]
 ```
 
+## Releases (`src/releases/`)
+
+`ReleaseManager` assembles Linear-planned releases, generates manifests and notes, and enforces freeze windows:
+
+```typescript
+import { createReleaseManager } from './src/releases'
+
+const manager = createReleaseManager(pool)
+
+// Create a release record
+const release = await manager.create('1.2.0', {
+  branch: 'release/1.2.0',
+  linearCycleId: 'cycle-abc',
+})
+
+// Pull tickets from Linear and build the manifest
+const manifest = await manager.buildManifest(release.id, linearClient, 'team-eng', ['v1.2.0'])
+// manifest.tickets — ManifestTicket[] with status, priority, labels, assignee
+// manifest.summary — { total, byStatus, byPriority }
+
+// Generate markdown release notes categorised by label
+const notes = manager.generateNotes(manifest)
+// ## Features  →  feat/feature-labelled tickets
+// ## Fixes     →  bug/fix-labelled tickets
+// ## Improvements → chore/enhancement-labelled tickets
+// ## Other     →  everything else
+await manager.saveNotes(release.id, notes)
+
+// Freeze the release (no new merges)
+await manager.setFreezeWindow(release.id, new Date('2024-07-01T12:00:00Z'))
+const frozen = await manager.isInFreezeWindow(release.id)  // true after freeze_at
+
+// Mark shipped
+await manager.updateStatus(release.id, 'released')  // sets released_at = NOW()
+
+// List all planning-stage releases
+const planning = await manager.listReleases('planning')
+```
+
 ## Next milestone
 
-**M7 — Linear + provenance:** ticket sync and immutable audit log.
+**M9 — Agent interface:** CLI + MCP server, end-to-end fleet demo.

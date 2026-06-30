@@ -12,7 +12,7 @@
 | M5 | Hotspot leases | ☑ Done |
 | M6 | Gates | ☑ Done |
 | M7 | Linear + provenance | ☑ Done |
-| M8 | Releases | ☐ Not started |
+| M8 | Releases | ☑ Done |
 | M9 | Agent interface | ☐ Not started |
 
 ### M0 — Scaffold (done)
@@ -147,6 +147,22 @@
   - `OctokitLike` interface keeps the adapter testable without real GitHub credentials
 - [x] 28 unit tests across both modules (13 worktrees + 15 queue), all passing
 - [x] Total: 63 tests passing
+
+### M8 — Releases (done)
+
+- [x] `src/releases/types.ts` — `ReleaseStatus`, `ManifestTicket`, `ReleaseManifest`, `ReleaseRecord`, `CreateReleaseOptions`
+- [x] `src/releases/index.ts` — `ReleaseManager` class with injectable `ReleasesPool` and `ReleaseLinearClient`
+  - `create(version, options)`: INSERT into releases table; supports `branch`, `linearCycleId`, `freezeAt`; returns `ReleaseRecord`
+  - `getRelease(releaseId)`: SELECT by id; returns `ReleaseRecord | null`
+  - `updateStatus(releaseId, status)`: UPDATE status; automatically adds `released_at = NOW()` when status is `'released'`
+  - `setFreezeWindow(releaseId, freezeAt)`: sets `freeze_at` and flips status to `'frozen'`
+  - `isInFreezeWindow(releaseId, at?)`: returns `true` when `at >= freeze_at`; defaults `at` to now
+  - `buildManifest(releaseId, linearClient, teamId, labelFilter?)`: fetches tickets from Linear, maps to `ManifestTicket[]`, computes `summary.byStatus` and `summary.byPriority`, persists manifest JSON to DB, returns `ReleaseManifest`
+  - `generateNotes(manifest)`: pure function; categorises tickets by label into Features / Fixes / Improvements / Other sections; renders markdown links when ticket has a URL
+  - `saveNotes(releaseId, notes)`: UPDATE notes column in DB
+  - `listReleases(status?)`: SELECT all releases or filter by status, ordered by `created_at DESC`
+- [x] `createReleaseManager(pool)` factory
+- [x] 40 new unit tests; total test count 292
 
 ## Documentation
 
