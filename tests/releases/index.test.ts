@@ -80,12 +80,12 @@ const SAMPLE_MANIFEST: ReleaseManifest = {
 
 function makePool(rowSets: unknown[][] = []): ReleasesPool & { query: ReturnType<typeof vi.fn> } {
   let call = 0
-  return {
-    query: vi.fn(() => {
-      const rows = rowSets[call++] ?? []
-      return Promise.resolve({ rows })
-    }),
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fn: any = vi.fn(() => {
+    const rows = rowSets[call++] ?? []
+    return Promise.resolve({ rows })
+  })
+  return { query: fn }
 }
 
 function makeLinear(tickets: LinearTicket[] = []): ReleaseLinearClient {

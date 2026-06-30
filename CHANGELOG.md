@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M9)
+
+- M9 agent interface: CLI (`src/agent-iface/cli/`) and MCP server (`src/agent-iface/mcp/`) expose the harbormaster control plane to AI coding agents
+- `parseArgs` — minimal argument parser supporting `--flag value`, `--bool`, numeric coercion, multi-value flags (`--files`, `--labels`), and subcommand extraction
+- CLI commands via injectable `CLIServices` (no real infrastructure needed in tests): `schedule` (impact estimation + dispatch plan), `hotspot check`, `lease acquire / release / release-holder / list`, and `help`; all output JSON on stdout, error messages on stderr with exit code 1
+- `MCPServer` — JSON-RPC 2.0 stdio server; handles `initialize`, `tools/list`, `tools/call`, `notifications/initialized` (notification, no response); unknown methods → -32601, handler errors → -32603; `run(input?, output?)` accepts injectable streams for testing
+- Six MCP tools via injectable `MCPServices`: `schedule_tickets`, `check_hotspot`, `acquire_lease`, `release_lease`, `release_leases_by_holder`, `list_active_leases`
+- Production binary entry points: `src/agent-iface/cli/bin.ts` (`hm`) and `src/agent-iface/mcp/bin.ts` (`hm-mcp`)
+- 48 new unit tests (29 CLI + 19 MCP); total test count 340 — all green
+
 ### Added — 2026-06-30 (M8)
 
 - M8 releases: `ReleaseManager` (`src/releases/`) manages Linear-planned releases end-to-end — `create` inserts a release record (version, branch, optional `linearCycleId` and `freezeAt`); `buildManifest` fetches tickets from Linear via injectable `ReleaseLinearClient`, maps them to `ManifestTicket[]`, computes summary counts by status and priority, and persists the manifest to the `releases` table; `generateNotes` is a pure function that categories tickets by label into Features / Fixes / Improvements / Other sections and renders markdown links when a ticket has a URL; `setFreezeWindow` sets `freeze_at` and flips status to `'frozen'`; `isInFreezeWindow` compares the current time to `freeze_at`; `updateStatus` stamps `released_at = NOW()` when status reaches `'released'`; `listReleases` supports optional status filtering ordered by `created_at DESC`; all database and Linear dependencies are injected for deterministic testing

@@ -16,12 +16,15 @@ Three layers, in priority order:
 
 ## Status
 
-**M8 Releases complete.** M0–M8 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**All milestones complete (M0–M9).** See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
 ```
 src/
+  agent-iface/
+    cli/            # CLI (parseArgs, dispatch, command handlers, runCLI, bin entry)
+    mcp/            # MCP server (MCPServer, buildTools, createMCPServer, bin entry)
   impact/           # ImpactEstimator — file + domain overlap surfaces per ticket
   scheduler/        # Scheduler — conflict-aware dispatch plan (parallel/sequence/merge)
   gates/            # GatePipeline — scope / CI / QA / HITL with per-domain policy
@@ -41,6 +44,7 @@ src/
   config.ts         # Zod-validated config from environment
   index.ts          # Control-plane entry point
 tests/
+  agent-iface/      # Unit tests for CLI (29) and MCP server (19)
   gates/            # Unit tests for gate pipeline (37 tests)
   hotspots/         # Unit tests for hotspot leases (30 tests)
   impact/           # Unit tests for impact estimator (19 tests)
@@ -279,6 +283,65 @@ await manager.updateStatus(release.id, 'released')  // sets released_at = NOW()
 const planning = await manager.listReleases('planning')
 ```
 
-## Next milestone
+## Agent interface (`src/agent-iface/`)
 
-**M9 — Agent interface:** CLI + MCP server, end-to-end fleet demo.
+Agents interact with harbormaster through two interfaces: a CLI (`hm`) and an MCP server (`hm-mcp`).
+
+### CLI
+
+```bash
+# Schedule tickets and get a dispatch plan
+hm schedule ENG-1 ENG-2 --files src/release/branch.ts
+hm schedule ENG-42 --labels release semver --priority 1
+
+# Check whether files touch a hotspot (no lease acquired)
+hm hotspot check --files src/db/migrations/003.sql
+
+# Advisory leases
+hm lease acquire --holder dispatch-1 --files src/db/migrations/003.sql [--ttl 60000]
+hm lease release --id lease-7
+hm lease release-holder --holder dispatch-1
+hm lease list
+
+hm help
+```
+
+All commands return JSON to stdout (exit 0) or an error message to stderr (exit 1).
+
+### MCP server (Model Context Protocol)
+
+The MCP server exposes harbormaster tools over stdio as a JSON-RPC 2.0 server. Start it with:
+
+```bash
+hm-mcp        # production binary (reads HARBORMASTER_* env vars)
+```
+
+Or integrate programmatically:
+
+```typescript
+import { createMCPServer } from './src/agent-iface/mcp'
+import { ImpactEstimator } from './src/impact'
+import { Scheduler } from './src/scheduler'
+import { createHotspotLeaseManager } from './src/hotspots'
+
+const server = createMCPServer({
+  impactEstimator: new ImpactEstimator(),
+  scheduler: new Scheduler(),
+  leaseManager: createHotspotLeaseManager([
+    { name: 'db-migrations', patterns: ['src/db/migrations/'], reason: '...' },
+  ]),
+})
+
+server.run()  // reads from stdin, writes to stdout
+```
+
+**Available MCP tools:**
+
+| Tool | Description |
+|------|-------------|
+| `schedule_tickets` | Estimate impact for each ticket and return a conflict-aware dispatch plan |
+| `check_hotspot` | Check whether a file list touches a registered hotspot (no lease) |
+| `acquire_lease` | Acquire an advisory lease on a matched hotspot (supports TTL) |
+| `release_lease` | Release a lease by ID |
+| `release_leases_by_holder` | Release all leases held by a given dispatch or agent |
+| `list_active_leases` | List all currently active (non-expired) leases |

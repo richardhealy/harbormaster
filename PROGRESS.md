@@ -13,7 +13,7 @@
 | M6 | Gates | ☑ Done |
 | M7 | Linear + provenance | ☑ Done |
 | M8 | Releases | ☑ Done |
-| M9 | Agent interface | ☐ Not started |
+| M9 | Agent interface | ☑ Done |
 
 ### M0 — Scaffold (done)
 
@@ -164,6 +164,39 @@
 - [x] `createReleaseManager(pool)` factory
 - [x] 40 new unit tests; total test count 292
 
+### M9 — Agent interface (done)
+
+- [x] `src/agent-iface/cli/parser.ts` — `parseArgs`: minimal argument parser supporting `--flag value`, `--bool`, numeric auto-coercion, multi-value flags (`--files`, `--labels`, `--expected-files`), positional args, command and subcommand extraction
+- [x] `src/agent-iface/cli/commands.ts` — `dispatch` + individual handlers
+  - `handleSchedule`: single or multi-ticket impact estimation + dispatch plan
+  - `handleHotspot`: `check` subcommand wraps `HotspotLeaseManager.check`
+  - `handleLease`: `acquire`, `release`, `release-holder`, `list` subcommands
+  - `handleHelp`: full usage text
+  - All injectable via `CLIServices` for deterministic testing
+- [x] `src/agent-iface/cli/index.ts` — `runCLI(argv, services, streams)` entry point with injectable stdout/stderr
+- [x] `src/agent-iface/cli/bin.ts` — production binary (wires real `ImpactEstimator`, `Scheduler`, `HotspotLeaseManager`)
+- [x] `src/agent-iface/mcp/types.ts` — `JSONRPCRequest`, `JSONRPCResponse`, `JSONRPCError`, `MCPTool`, `MCPToolResult`, `MCPToolDefinition`
+- [x] `src/agent-iface/mcp/server.ts` — `MCPServer` class
+  - `handleMessage(request)`: handles `initialize`, `tools/list`, `tools/call`, `notifications/initialized` (returns null), unknown methods → -32601, tool errors → -32603
+  - `run(input?, output?)`: stdio line-delimited JSON-RPC 2.0 loop with inject-able streams
+- [x] `src/agent-iface/mcp/tools.ts` — `buildTools(services)` defining 6 tools:
+  - `schedule_tickets`: impact estimation + dispatch plan via `ImpactEstimator` and `Scheduler`
+  - `check_hotspot`: file-to-hotspot pattern matching (no lease acquired)
+  - `acquire_lease`: advisory lease acquisition with optional TTL
+  - `release_lease`: release by lease ID
+  - `release_leases_by_holder`: bulk release by holder ID
+  - `list_active_leases`: enumerate non-expired leases
+- [x] `src/agent-iface/mcp/index.ts` — `createMCPServer(services)` factory; re-exports
+- [x] `src/agent-iface/mcp/bin.ts` — production MCP server binary
+- [x] `src/agent-iface/index.ts` — public re-exports for both CLI and MCP
+- [x] 48 unit tests (29 CLI + 19 MCP); total test count 340 (all passing)
+
 ## Documentation
 
-*(Not yet started — will be seeded once the spec is fully implemented)*
+| # | Deliverable | Status |
+|---|-------------|--------|
+| a | Doc comments / inline documentation | ☐ Not started |
+| b | API reference documentation | ☐ Not started |
+| c | Architecture dossier (`docs/architecture.md`) | ☐ Not started |
+| d | Integration guide (`docs/integration.md`) | ☐ Not started |
+| e | Usage and how-to guides + `docs/` index + final README pass | ☐ Not started |
