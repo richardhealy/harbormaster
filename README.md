@@ -16,12 +16,15 @@ Three layers, in priority order:
 
 ## Status
 
-**M0 Scaffold complete.** See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**M1 Worktrees + queue complete.** See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
 ```
 src/
+  integration/
+    worktrees/      # WorktreeManager — per-task git worktrees off the current tip
+    queue/          # GitHubMergeQueueAdapter — adapter over GitHub merge queue
   release/          # ported release.sh lifecycle (semver, branches, tags, hotfix, sync)
   db/               # Postgres connection, migration runner, TypeScript schema types
     migrations/     # SQL migration files (applied in order)
@@ -31,6 +34,7 @@ src/
   config.ts         # Zod-validated config from environment
   index.ts          # Control-plane entry point
 tests/
+  integration/      # Unit tests for worktrees (13 tests) and queue (15 tests)
   release/          # Unit tests for the release module (35 tests)
 .github/
   workflows/
@@ -91,6 +95,35 @@ The `src/release/` module is a TypeScript port of the `ggsa-spt/release.sh` work
 | `syncDevelop(git)` | Merges main into develop, auto-resolving the package.json version conflict |
 | `featureBranchName({type, ticketId, description})` | Returns `feat/ENG-123/add-user-auth` style branch name |
 
+## Integration layer
+
+### Worktrees (`src/integration/worktrees/`)
+
+`WorktreeManager` creates isolated git worktrees for each dispatch so agents never touch the same working tree:
+
+```typescript
+import { createWorktreeManager } from './src/integration/worktrees'
+import { simpleGit } from 'simple-git'
+
+const manager = createWorktreeManager(simpleGit('/repo'), '/repo')
+const info = await manager.create({ dispatchId: 'disp-1', branch: 'feat/ENG-1/my-feature' })
+// → { path: '/repo/.worktrees/disp-1', branch: 'feat/ENG-1/my-feature', ... }
+await manager.remove('disp-1')
+```
+
+### Queue adapter (`src/integration/queue/`)
+
+`GitHubMergeQueueAdapter` wraps GitHub's native merge queue. Enabling auto-merge on a PR submits it to the queue (requires merge-queue branch protection on the target branch):
+
+```typescript
+import { GitHubMergeQueueAdapter } from './src/integration/queue'
+
+const queue = new GitHubMergeQueueAdapter(octokit, 'owner', 'repo')
+await queue.enqueue(42, 'squash', 'disp-1')  // enables auto-merge → enters GitHub merge queue
+await queue.listQueued()                       // lists all PRs with auto-merge enabled
+queue.updateStatus(42, 'merged')              // called from merge_group webhook
+```
+
 ## Next milestone
 
-**M1 — Worktrees + queue:** per-task git worktrees for agent isolation, adapter over GitHub merge queue / Mergify.
+**M2 — Optimistic re-run:** rebase, CI-on-result, automatic loser re-dispatch.
