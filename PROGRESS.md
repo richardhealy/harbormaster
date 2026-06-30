@@ -7,7 +7,7 @@
 | M0 | Scaffold: control-plane, Postgres, GitHub App, release/, CI | ☑ Done |
 | M1 | Worktrees + queue | ☑ Done |
 | M2 | Optimistic re-run | ☑ Done |
-| M3 | Impact + scheduler | ☐ Not started |
+| M3 | Impact + scheduler | ☑ Done |
 | M4 | Semantic conflicts | ☐ Not started |
 | M5 | Hotspot leases | ☐ Not started |
 | M6 | Gates | ☐ Not started |
@@ -54,6 +54,16 @@
   - `handleFailure(options, redispatch)`: full orchestration — cleanup → get new tip → call redispatch callback → create new worktree; returns `{ exhausted: true }` on limit
 - [x] `src/integration/rerun/types.ts` — `RebaseResult`, `CIResult`, `RerunOptions`, `RerunResult`, `RedispatchFn` types
 - [x] 27 unit tests; total test count 90
+
+### M3 — Impact + scheduler (done)
+
+- [x] `src/impact/types.ts` — `ImpactSurface`, `DependencyNode`, `DependencyGraph`, `OverlapAnalysis` types
+- [x] `src/impact/graph.ts` — `buildDependencyGraph`: walks a source tree and builds a file-level dependency graph (import + importedBy edges); `extractImports`: extracts local imports via `from '...'`, bare `import '...'`, and `require('...')` patterns; `collectFiles` + `resolveImport` helpers
+- [x] `src/impact/estimator.ts` — `computeTransitiveImpact`: BFS on the `importedBy` direction to find every file upstream of a ticket's direct changes; `analyseOverlap`: computes shared-file count and overlap ratio (against the smaller surface) between two impact surfaces
+- [x] `src/scheduler/types.ts` — `TicketWithImpact`, `GroupDecision` (`'parallel' | 'merge'`), `DispatchGroup`, `DispatchStage`, `DispatchPlan`, `SchedulerConfig`
+- [x] `src/scheduler/planner.ts` — `Scheduler` class: Union-Find merges high-overlap tickets, Kahn's topological sort assigns tickets to execution stages, non-overlapping tickets run in parallel within a stage, sequenced tickets appear in later stages
+- [x] 53 new tests (15 estimator + 18 graph + 20 scheduler); total 143 passing
+- [x] Headline test: two tickets sharing ≥ 1 file are placed in separate stages (or merged into one job if overlap > 70%) — never dispatched concurrently
 
 ### M1 — Worktrees + queue (done)
 

@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M3)
+
+- M3 impact + scheduler: `buildDependencyGraph` (`src/impact/graph.ts`) scans a TypeScript/JavaScript source tree and builds a file-level graph of import edges (both `imports` and `importedBy`); handles `from '...'`, bare `import '...'`, and `require('...')` patterns
+- `computeTransitiveImpact` (`src/impact/estimator.ts`) walks the reverse dependency graph (BFS on importedBy) to expand a ticket's direct file list to its full upstream impact surface
+- `analyseOverlap` computes the shared-file overlap between two impact surfaces and reports a ratio against the smaller surface, preventing large-ticket false negatives
+- `Scheduler` (`src/scheduler/planner.ts`) produces a `DispatchPlan` from a list of tickets with their impact surfaces: Union-Find clusters tickets above the merge threshold into one job (`decision: 'merge'`); Kahn's topological sort partitions the remaining clusters into ordered `DispatchStage`s so that no two overlapping tickets are dispatched concurrently; non-conflicting tickets share a stage (`decision: 'parallel'`)
+- 53 new unit tests (15 estimator + 18 graph + 20 scheduler); total 143 tests passing
+
 ### Added — 2026-06-30 (M2)
 
 - M2 optimistic re-run: `Rebaser` (`src/integration/rerun/rebase.ts`) rebases a worktree branch onto a new tip via a per-directory `GitFactory`; on conflict it collects unmerged files via `git diff --name-only --diff-filter=U` and aborts to restore a clean state; on success it returns the new HEAD SHA
