@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**M4 Semantic Conflict Detection complete.** M0–M4 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**M5 Hotspot Leases complete.** M0–M5 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
@@ -29,6 +29,7 @@ src/
     queue/          # GitHubMergeQueueAdapter — adapter over GitHub merge queue
     rerun/          # Rebaser, CIChecker, Rerunner — optimistic re-dispatch loop
     semantic/       # SemanticConflictDetector — cross-branch tsc typecheck + conflict analysis
+  hotspots/         # HotspotManager — advisory leases for un-mergeable hotspots (migrations, shared contracts)
   release/          # ported release.sh lifecycle (semver, branches, tags, hotfix, sync)
   db/               # Postgres connection, migration runner, TypeScript schema types
     migrations/     # SQL migration files (applied in order)
@@ -38,6 +39,7 @@ src/
   config.ts         # Zod-validated config from environment
   index.ts          # Control-plane entry point
 tests/
+  hotspots/         # Unit tests for HotspotManager (28 tests)
   impact/           # Unit tests for impact estimator (19 tests)
   scheduler/        # Unit tests for conflict-aware scheduler (15 tests)
   integration/      # Unit tests for worktrees (13), queue (15), rerun (27), semantic (21)
@@ -183,6 +185,59 @@ Decision rules (by Jaccard overlap score):
 - `0 < overlap < mergeThreshold` → **sequence**: run one ticket after the other
 - `overlap == 0` → **parallel**: safe to run at the same time
 
+## Hotspot leases (`src/hotspots/`)
+
+Advisory leases serialise access to the small set of paths that punish collide-then-redo: DB migrations, shared type contracts, or any file where a conflict is expensive rather than cheap.
+
+### Declaring hotspots
+
+```typescript
+import { createHotspotManager } from './src/hotspots'
+
+const hotspots = createHotspotManager({
+  hotspots: [
+    {
+      id: 'db-migrations',
+      patterns: 'src/db/migrations',
+      description: 'DB migrations — run one at a time',
+    },
+    {
+      id: 'shared-contract',
+      patterns: ['src/types/shared.ts', 'src/types/contracts.ts'],
+      description: 'Shared type contracts — only one editor at a time',
+    },
+    {
+      id: 'generated-clients',
+      patterns: 'src/generated/*.ts',   // glob supported
+      description: 'Generated API clients',
+    },
+  ],
+  defaultLeaseDurationMs: 30 * 60 * 1000,  // 30 min; null = no expiry
+})
+```
+
+### Acquiring and releasing
+
+```typescript
+// Before dispatching a task:
+const result = hotspots.tryAcquire('dispatch-123', 'ENG-99', ['src/db/migrations/005_add_index.sql'])
+if (!result.acquired) {
+  // result.blocking holds the lease that blocked us
+  console.log(`Hotspot ${result.hotspotId} held by dispatch ${result.blocking.dispatchId}`)
+  // → queue the ticket, come back later
+}
+
+// After the task completes or fails:
+hotspots.release('dispatch-123')
+```
+
+Non-mutating read before committing to a dispatch:
+
+```typescript
+const blocking = hotspots.checkAccess(['src/db/migrations/005_add_index.sql'], 'dispatch-456')
+// → null (clear) or the Lease that blocks dispatch-456
+```
+
 ## Next milestone
 
-**M4 — Semantic conflicts:** cross-branch typecheck/build detection.
+**M6 — Gates:** scope / CI / QA / HITL pipeline, per-domain policy.

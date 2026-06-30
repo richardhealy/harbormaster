@@ -9,7 +9,7 @@
 | M2 | Optimistic re-run | ☑ Done |
 | M3 | Impact + scheduler | ☑ Done |
 | M4 | Semantic conflicts | ☑ Done |
-| M5 | Hotspot leases | ☐ Not started |
+| M5 | Hotspot leases | ☑ Done |
 | M6 | Gates | ☐ Not started |
 | M7 | Linear + provenance | ☐ Not started |
 | M8 | Releases | ☐ Not started |
@@ -104,6 +104,19 @@
   - `OctokitLike` interface keeps the adapter testable without real GitHub credentials
 - [x] 28 unit tests across both modules (13 worktrees + 15 queue), all passing
 - [x] Total: 63 tests passing
+
+### M5 — Hotspot leases (done)
+
+- [x] `src/hotspots/types.ts` — `Hotspot`, `Lease`, `AcquireResult`, `HotspotConfig`, `HotspotMatch`
+- [x] `src/hotspots/index.ts` — `HotspotManager` class
+  - `matchHotspots(files)`: pattern-matching using string prefix (directory-safe, avoids `src/db` matching `src/dbfoo`) and simple glob (`*`) — returns matched hotspot entries with the triggering file list
+  - `tryAcquire(dispatchId, ticketId, files, durationMs?)`: atomic all-or-nothing lease acquisition across every matched hotspot; existing expired leases are evicted before the check; same dispatch can re-acquire without deadlock
+  - `release(dispatchId)`: releases all leases held by the given dispatch; returns count released
+  - `checkAccess(files, requestingDispatchId?)`: non-mutating read — returns the blocking lease if any matched hotspot is held by a different dispatch, null otherwise
+  - `listLeases()`: all currently active (non-expired) leases with lazy eviction
+  - `listHotspots()`: the configured hotspot definitions
+  - `createHotspotManager(config)` factory function
+- [x] 28 unit tests covering pattern matching, acquire (success/blocked/atomic/re-acquire/expiry), release, checkAccess, and listLeases; total test count 173
 
 ## Documentation
 
