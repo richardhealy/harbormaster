@@ -13,7 +13,7 @@
 | M6 | Gates | ☑ Done |
 | M7 | Linear + provenance | ☑ Done |
 | M8 | Releases | ☑ Done |
-| M9 | Agent interface | ☐ Not started |
+| M9 | Agent interface | ☑ Done |
 
 ### M0 — Scaffold (done)
 
@@ -164,6 +164,25 @@
 - [x] `createReleaseManager(pool)` factory
 - [x] 40 new unit tests; total test count 292
 
+### M9 — Agent interface (done)
+
+- [x] `src/agent-iface/cli/` — CLI interface for humans and scripts
+  - `types.ts` — `CliCommand` discriminated union covering all commands; `CliResult<T>` typed success/error
+  - `parser.ts` — `parseArgs(argv)`: parses raw argv into a typed `CliCommand`; supports all commands with flags and positionals
+  - `runner.ts` — `runCommand(cmd, deps)`: executes a command using injectable deps (hotspots, provenance pool, scheduler config); always returns `CliResult`
+  - Commands: `schedule`, `impact`, `lease acquire`, `lease release`, `trail`, `status`, `help`
+- [x] `src/agent-iface/mcp/` — MCP server for agents (JSON-RPC 2.0 over stdio)
+  - `types.ts` — JSON-RPC 2.0 wire types, MCP tool schema types, `RPC_ERRORS` constants
+  - `tools.ts` — `createTools(deps)`: six MCP tool definitions with handlers — `hm_schedule`, `hm_estimate_impact`, `hm_check_hotspot`, `hm_acquire_lease`, `hm_release_lease`, `hm_get_trail`
+  - `server.ts` — `McpServer`: `handle(line)` processes one newline-delimited JSON-RPC message; `handleRequest(req)` dispatches to protocol methods; `run(io)` drives the stdio loop; `createStdioIO()` production transport
+- [x] 50 new unit tests (29 CLI + 21 MCP); total test count 342
+
 ## Documentation
 
-*(Not yet started — will be seeded once the spec is fully implemented)*
+| # | Deliverable | Status |
+|---|-------------|--------|
+| D1 | Doc comments across public API | ☐ Not started |
+| D2 | API reference (OpenAPI + docs/api.md) | ☐ Not started |
+| D3 | Architecture dossier (docs/architecture.md) | ☐ Not started |
+| D4 | Integration guide (docs/integration.md) | ☐ Not started |
+| D5 | Usage/how-to guides + docs/ index + README pass | ☐ Not started |

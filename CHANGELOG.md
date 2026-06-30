@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M9)
+
+- M9 agent interface: CLI (`src/agent-iface/cli/`) exposes all harbormaster operations — `schedule`, `impact`, `lease acquire/release`, `trail`, `status`, `help` — via a minimal argv parser and injectable runner; `runCommand(cmd, deps)` returns a typed `CliResult<T>` so callers can format output or pipe data without parsing stdout
+- MCP server (`src/agent-iface/mcp/`) implements JSON-RPC 2.0 over newline-delimited stdio, giving AI agents six typed tools: `hm_schedule` (conflict-aware dispatch plan), `hm_estimate_impact` (impact surface), `hm_check_hotspot` (hotspot detection without lease), `hm_acquire_lease` (advisory lease — returns granted/blocked/not-required), `hm_release_lease` (release after work), and `hm_get_trail` (provenance audit trail); all tools return structured JSON text content so model outputs can be parsed directly; `McpServer.handle(line)` is fully testable without real IO
+- 50 new unit tests (29 CLI, 21 MCP); total test count 342
+
 ### Added — 2026-06-30 (M8)
 
 - M8 releases: `ReleaseManager` (`src/releases/`) manages Linear-planned releases end-to-end — `create` inserts a release record (version, branch, optional `linearCycleId` and `freezeAt`); `buildManifest` fetches tickets from Linear via injectable `ReleaseLinearClient`, maps them to `ManifestTicket[]`, computes summary counts by status and priority, and persists the manifest to the `releases` table; `generateNotes` is a pure function that categories tickets by label into Features / Fixes / Improvements / Other sections and renders markdown links when a ticket has a URL; `setFreezeWindow` sets `freeze_at` and flips status to `'frozen'`; `isInFreezeWindow` compares the current time to `freeze_at`; `updateStatus` stamps `released_at = NOW()` when status reaches `'released'`; `listReleases` supports optional status filtering ordered by `created_at DESC`; all database and Linear dependencies are injected for deterministic testing
