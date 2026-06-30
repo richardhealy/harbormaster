@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M4)
+
+- M4 semantic conflicts: `SemanticConflictDetector` (`src/integration/semantic/`) checks pairs of in-flight agent branches by typechecking each branch alone, then typechecking a merged view built by `MergeViewFactory` (copies branch A, overlays branch B's changed files); errors that appear in the merged view but not in either branch alone are reported as cross-branch semantic conflicts
+- `checkAll` checks all unique branch pairs concurrently and returns a `SemanticCheckResult` with the full list of conflicts and a top-level `clean` flag
+- `createTypecheckRunner` spawns `npx tsc --noEmit` and parses `error TSxxxx` lines; `createMergeViewFactory` builds the merged temp dir via `git diff --diff-filter=ACM` relative to the common ancestor on main
+- 25 new unit tests; total test count 149
+
 ### Added — 2026-06-30 (M3)
 
 - M3 impact + scheduler: `ImpactEstimator` (`src/impact/`) estimates a ticket's file/directory/domain impact surface from explicit file lists (confidence 1.0), label mappings (0.6), or title/description keywords (0.3); `jaccardSimilarity` and `computeOverlap` measure surface overlap (file Jaccard → directory containment → domain Jaccard)

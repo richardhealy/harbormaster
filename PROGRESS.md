@@ -8,7 +8,7 @@
 | M1 | Worktrees + queue | ☑ Done |
 | M2 | Optimistic re-run | ☑ Done |
 | M3 | Impact + scheduler | ☑ Done |
-| M4 | Semantic conflicts | ☐ Not started |
+| M4 | Semantic conflicts | ☑ Done |
 | M5 | Hotspot leases | ☐ Not started |
 | M6 | Gates | ☐ Not started |
 | M7 | Linear + provenance | ☐ Not started |
@@ -73,6 +73,17 @@
   - Decision labels: `parallel` (same wave, no overlap), `sequence` (later wave, some overlap), `merge` (one agent job)
 - [x] 34 unit tests: 19 for impact, 15 for scheduler (all passing)
 - [x] Total test count: 124
+
+### M4 — Semantic conflicts (done)
+
+- [x] `src/integration/semantic/types.ts` — `InFlightBranch`, `TypecheckResult`, `TypecheckRunner`, `MergeViewFactory`, `PairCheckResult`, `SemanticCheckResult`
+- [x] `src/integration/semantic/index.ts` — `SemanticConflictDetector` class
+  - `checkPair(branchA, branchB)`: typechecks each branch alone (concurrently), creates a merged view via `MergeViewFactory`, typechecks the merged view, and returns `{ outcome: 'conflict', newErrors }` for any error that did not exist in either branch individually
+  - `checkAll(branches)`: checks all unique pairs concurrently; returns `{ conflicts, allPairs, checkedPairs, clean }`
+  - Always calls `MergeViewFactory.cleanup` in a `finally` block; skips cleanup when `create` itself fails
+- [x] `createTypecheckRunner(tsconfigPath?)`: default runner — spawns `npx tsc --noEmit`, extracts `error TSxxxx` lines
+- [x] `createMergeViewFactory(tempBase?)`: default factory — copies worktreeA to a temp dir, then overlays files changed by worktreeB (`git diff --name-only --diff-filter=ACM <base>..HEAD`)
+- [x] 25 unit tests (14 for `checkPair`, 11 for `checkAll`); total test count 149
 
 ### M1 — Worktrees + queue (done)
 
