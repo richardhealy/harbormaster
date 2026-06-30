@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M7)
+
+- M7 Linear + provenance: full `LinearClient` (`src/integrations/linear/`) replaces the M0 stub — `getTicket(identifier)` fetches an issue by its human-readable identifier via GraphQL, `updateTicketStatus` mutates the workflow state, `getWorkflowStates(teamId)` lists available states, and `getTeamIssues(teamId, cycleId?)` enumerates team issues with an optional cycle filter for release planning; all network calls go through an injectable `FetchFn` so the client is unit-testable without real credentials
+- `AuditLogger` (`src/provenance/`) wraps an injectable `AuditStore` with a stable append-only contract; `InMemoryAuditStore` (tests) and `PostgresAuditStore` (production, writes to the `audit_log` table) are the two backends; `log()` records any of 16 event types covering the full dispatch-gate-merge-release lifecycle; `getByTicket`, `getByAgent`, `getByEventType`, `getRecent`, and `query` (combined filters including `since` window) cover every provenance query the rest of the system needs; `createAuditLogger(store?)` returns a logger backed by the memory store by default
+- 49 new unit tests (16 Linear + 33 provenance); total test count 261
+
 ### Added — 2026-06-30 (M6)
 
 - M6 gate pipeline: `GatePipeline` (`src/gates/`) runs changes through four ordered stages — scope check, CI, QA, and HITL approval — with per-domain policy controlling which stages are required and how strict they are

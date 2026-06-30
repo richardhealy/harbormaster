@@ -11,7 +11,7 @@
 | M4 | Semantic conflicts | ☑ Done |
 | M5 | Hotspot leases | ☑ Done |
 | M6 | Gates | ☑ Done |
-| M7 | Linear + provenance | ☐ Not started |
+| M7 | Linear + provenance | ☑ Done |
 | M8 | Releases | ☐ Not started |
 | M9 | Agent interface | ☐ Not started |
 
@@ -128,6 +128,22 @@
   - `OctokitLike` interface keeps the adapter testable without real GitHub credentials
 - [x] 28 unit tests across both modules (13 worktrees + 15 queue), all passing
 - [x] Total: 63 tests passing
+
+### M7 — Linear + provenance (done)
+
+- [x] `src/integrations/linear/types.ts` — `LinearTicket`, `LinearState`, `LinearLabel`, `LinearUser`, `LinearWorkflowState`, `FetchFn` types
+- [x] `src/integrations/linear/index.ts` — full `LinearClient` (replaces stub)
+  - `getTicket(identifier)` — GraphQL query by human-readable identifier (e.g. "ENG-123"); returns `LinearTicket | null`
+  - `updateTicketStatus(issueId, stateId)` — `issueUpdate` mutation; returns `boolean`
+  - `getWorkflowStates(teamId)` — list workflow states for a team
+  - `getTeamIssues(teamId, cycleId?)` — list open issues; optional cycle filter for release planning (M8)
+  - Injectable `FetchFn` keeps the client unit-testable without real network calls
+  - `createLinearClient(apiKey, fetchFn?)` factory function
+- [x] `src/provenance/types.ts` — `AuditEventType` (16 event types covering the full lifecycle), `AuditEvent`, `AuditLogEntry`, `AuditQueryOptions`, `AuditStore` interface
+- [x] `src/provenance/stores/memory.ts` — `InMemoryAuditStore` with insertion-order sequence counter for deterministic sort
+- [x] `src/provenance/stores/postgres.ts` — `PostgresAuditStore` writing to the `audit_log` table from `001_initial.sql`
+- [x] `src/provenance/index.ts` — `AuditLogger` class: `log()`, `getByTicket()`, `getByAgent()`, `getByEventType()`, `getRecent()`, `query()`; `createAuditLogger(store?)` factory
+- [x] 49 new unit tests (16 Linear + 33 provenance); total test count 261
 
 ## Documentation
 

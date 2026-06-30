@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**M6 Gate Pipeline complete.** M0–M6 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**M7 Linear + Provenance complete.** M0–M7 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
@@ -34,9 +34,11 @@ src/
   release/          # ported release.sh lifecycle (semver, branches, tags, hotfix, sync)
   db/               # Postgres connection, migration runner, TypeScript schema types
     migrations/     # SQL migration files (applied in order)
+  provenance/       # AuditLogger — append-only event log (memory + Postgres backends)
+    stores/         # InMemoryAuditStore (tests), PostgresAuditStore (production)
   integrations/
     github/         # GitHub App (webhook registration, push enforcement)
-    linear/         # Linear API client stub (M7)
+    linear/         # LinearClient — full GraphQL client for ticket sync and status updates
   config.ts         # Zod-validated config from environment
   index.ts          # Control-plane entry point
 tests/
@@ -45,6 +47,8 @@ tests/
   impact/           # Unit tests for impact estimator (19 tests)
   scheduler/        # Unit tests for conflict-aware scheduler (15 tests)
   integration/      # Unit tests for worktrees (13), queue (15), rerun (27), semantic (21)
+  integrations/     # Unit tests for the Linear client (16 tests)
+  provenance/       # Unit tests for AuditLogger (33 tests)
   release/          # Unit tests for the release module (35 tests)
 .github/
   workflows/
@@ -238,6 +242,62 @@ const result = await pipeline.run({
 // result.gates  → [{stage:'scope',status:'pass'}, {stage:'ci',status:'pass'}, {stage:'qa',status:'pass'}]
 ```
 
+## Linear integration (`src/integrations/linear/`)
+
+`LinearClient` talks to the Linear GraphQL API to fetch and update tickets.
+
+```typescript
+import { createLinearClient } from './src/integrations/linear'
+
+const linear = createLinearClient(process.env.LINEAR_API_KEY!)
+
+const ticket = await linear.getTicket('ENG-123')
+// → { id: 'uuid-...', identifier: 'ENG-123', title: '...', state: { name: 'In Progress', ... }, ... }
+
+const states = await linear.getWorkflowStates('team-id')
+const doneState = states.find(s => s.type === 'completed')!
+
+await linear.updateTicketStatus(ticket!.id, doneState.id)
+// → true
+
+const cycleIssues = await linear.getTeamIssues('team-id', 'cycle-id')
+```
+
+## Provenance / audit log (`src/provenance/`)
+
+Every dispatch, gate decision, merge, and release event is recorded in the append-only `AuditLogger`. In production it writes to Postgres; in tests it uses an in-memory store.
+
+```typescript
+import { createAuditLogger } from './src/provenance'
+
+const audit = createAuditLogger()  // in-memory by default
+
+await audit.log({
+  eventType: 'dispatch.created',
+  payload: { branch: 'feat/ENG-1/add-feature', worktreePath: '/repo/.worktrees/disp-1' },
+  ticketId: 'ENG-1',
+  agentId: 'agent-001',
+  actor: 'conductor',
+})
+
+await audit.log({ eventType: 'gate.passed', payload: { gate: 'ci' }, ticketId: 'ENG-1', actor: 'harbormaster' })
+await audit.log({ eventType: 'merge.success', payload: { pr: 42, sha: 'abc123' }, ticketId: 'ENG-1', actor: 'harbormaster' })
+
+const history = await audit.getByTicket('ENG-1')
+// → [merge.success, gate.passed, dispatch.created] (most-recent first)
+```
+
+Supported event types: `ticket.synced`, `dispatch.created`, `dispatch.complete`, `dispatch.failed`, `dispatch.cancelled`, `gate.passed`, `gate.failed`, `gate.skipped`, `merge.success`, `merge.failure`, `rerun.dispatched`, `release.created`, `release.frozen`, `release.released`, `hotspot.acquired`, `hotspot.released`.
+
+### Postgres backend
+
+```typescript
+import { createAuditLogger, PostgresAuditStore } from './src/provenance'
+import { getPool } from './src/db'
+
+const audit = createAuditLogger(new PostgresAuditStore(getPool()))
+```
+
 ## Next milestone
 
-**M7 — Linear + provenance:** ticket sync and immutable audit log.
+**M8 — Releases:** Linear-planned releases, manifests, release notes, freeze windows.
