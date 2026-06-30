@@ -11,7 +11,7 @@
 | M4 | Semantic conflicts | ☑ Done |
 | M5 | Hotspot leases | ☑ Done |
 | M6 | Gates | ☑ Done |
-| M7 | Linear + provenance | ☐ Not started |
+| M7 | Linear + provenance | ☑ Done |
 | M8 | Releases | ☐ Not started |
 | M9 | Agent interface | ☐ Not started |
 
@@ -73,6 +73,25 @@
   - Decision labels: `parallel` (same wave, no overlap), `sequence` (later wave, some overlap), `merge` (one agent job)
 - [x] 34 unit tests: 19 for impact, 15 for scheduler (all passing)
 - [x] Total test count: 124
+
+### M7 — Linear + provenance (done)
+
+- [x] `src/integrations/linear/types.ts` — `LinearState`, `LinearLabel`, `LinearUser`, `LinearTicket`, `LinearWorkflowState`, `LinearIssueFilter`
+- [x] `src/integrations/linear/index.ts` — `LinearClient` with injectable `FetchFn`
+  - `getTicket(identifier)`: fetches a single issue by id or identifier; normalises `labels { nodes }` to a flat array
+  - `updateTicketStatus(ticketId, stateId)`: issues `issueUpdate` mutation
+  - `listTeamIssues(teamId, options)`: lists issues for a team with optional limit and filter
+  - `getWorkflowStates(teamId)`: returns all workflow states for a team
+- [x] `src/integrations/linear/sync.ts` — `TicketSyncer` class with injectable `SyncPool`
+  - `syncTicket(ticket)`: upserts a single ticket to the `tickets` table
+  - `syncTeamTickets(teamId, options)`: fetches all team issues and upserts each; returns `{ synced, errors }`
+- [x] `src/provenance/types.ts` — `AUDIT_EVENT_TYPES` const array, `AuditEventType`, `AuditEvent`, `PersistedAuditEvent`, `ProvenanceQuery`
+- [x] `src/provenance/index.ts` — `ProvenanceRecorder` class with injectable `ProvenancePool`
+  - `record(event)`: inserts into `audit_log`, returns the new row id
+  - `query(params)`: parameterised SELECT with optional `ticketId`, `agentId`, `eventType`, `since`, `limit` filters
+  - `queryByTicket(ticketId, limit?)`, `queryByDispatch(dispatchId)`, `getTrail(ticketId)` — convenience read helpers
+  - `createProvenanceRecorder(pool)` factory
+- [x] 40 new unit tests (14 LinearClient + 8 TicketSyncer + 18 ProvenanceRecorder); total test count 252
 
 ### M6 — Gates (done)
 

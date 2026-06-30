@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M7)
+
+- M7 Linear + provenance: `LinearClient` (`src/integrations/linear/`) implements the full Linear GraphQL API — `getTicket`, `updateTicketStatus`, `listTeamIssues`, and `getWorkflowStates` — with an injectable `FetchFn` for deterministic testing; labels are normalised from GraphQL connection shape (`{ nodes: [] }`) to a flat array
+- `TicketSyncer` (`src/integrations/linear/sync.ts`) upserts Linear tickets into the `tickets` Postgres table via `syncTicket` (single upsert) and `syncTeamTickets` (full team sweep, returns `{ synced, errors }`); a `SyncPool` interface keeps it testable without a real database
+- `ProvenanceRecorder` (`src/provenance/`) writes every fleet event to the immutable `audit_log` table via `record(event)` (returns the new row id); `query(params)` builds parameterised SQL from optional filters (`ticketId`, `agentId`, `eventType`, `since`, `limit`); convenience helpers `queryByTicket`, `queryByDispatch`, and `getTrail` cover the common read patterns; 16 audit event types defined as a typed union (`AuditEventType`)
+- 40 new unit tests (14 LinearClient + 8 TicketSyncer + 18 ProvenanceRecorder); total test count 252
+
 ### Added — 2026-06-30 (M6)
 
 - M6 gate pipeline: `GatePipeline` (`src/gates/`) runs changes through four ordered stages — scope check, CI, QA, and HITL approval — with per-domain policy controlling which stages are required and how strict they are
