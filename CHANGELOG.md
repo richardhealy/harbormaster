@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M5)
+
+- M5 hotspot advisory leases: `HotspotRegistry` (`src/hotspots/`) accepts declared hotspot definitions (path prefix patterns + domain names) and checks whether an impact surface touches any of them; `HotspotLeaseManager` provides in-memory advisory leases — `acquire` grants when the hotspot is free or re-grants to the same holder, blocks other holders with the current holder's ID, and supports optional TTL expiry; `pruneExpired` reclaims stale leases; `createHotspotManager` factory wires registry + lease manager together
+- 29 new unit tests covering path matching, domain matching, multi-hotspot detection, lease grant/deny/re-grant/release/expiry, and the convenience factory; total test count 174
+
 ### Added — 2026-06-30 (M4)
 
 - M4 semantic conflict detection: `SemanticConflictDetector` (`src/integration/semantic/`) runs `tsc --noEmit` in each in-flight branch's worktree via an injectable `ExecFn`; `parseTscOutput` converts raw tsc stdout into structured `TypeScriptError` objects; `detect` checks branches in parallel and calls `checkPairConflict` for every pair — flagging conflicts when branch A has type errors in files that branch B modified, when B has errors in A's files, or when both error in the same file; reports a `SemanticConflictReport` with per-branch results, `CrossBranchConflict` entries (with deduplicated `filesInvolved` and a human-readable description), and a top-level `hasConflicts` flag

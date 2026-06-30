@@ -9,7 +9,7 @@
 | M2 | Optimistic re-run | ☑ Done |
 | M3 | Impact + scheduler | ☑ Done |
 | M4 | Semantic conflicts | ☑ Done |
-| M5 | Hotspot leases | ☐ Not started |
+| M5 | Hotspot leases | ☑ Done |
 | M6 | Gates | ☐ Not started |
 | M7 | Linear + provenance | ☐ Not started |
 | M8 | Releases | ☐ Not started |
@@ -104,6 +104,19 @@
   - `OctokitLike` interface keeps the adapter testable without real GitHub credentials
 - [x] 28 unit tests across both modules (13 worktrees + 15 queue), all passing
 - [x] Total: 63 tests passing
+
+### M5 — Hotspot leases (done)
+
+- [x] `src/hotspots/types.ts` — `HotspotDefinition`, `LeaseRecord`, `AcquireResult`, `HotspotMatch`, `HotspotCheckResult`, `CheckInput`
+- [x] `src/hotspots/index.ts` — `HotspotRegistry` + `HotspotLeaseManager` + `createHotspotManager` factory
+  - `HotspotRegistry.check(surface)`: scans all registered hotspots; path patterns ending with `/` do prefix matching, others do exact matching; domain names matched against hotspot's declared domains list; returns `HotspotCheckResult` with `touchesHotspot` flag and per-hotspot `HotspotMatch` entries
+  - `HotspotLeaseManager.acquire(hotspotId, holderId, ttlMs?)`: grants when free or same holder (idempotent), blocks with current holder info otherwise; preserves original `acquiredAt` timestamp on re-acquire; optional TTL expressed in milliseconds
+  - `HotspotLeaseManager.release(hotspotId, holderId)`: only the holder can release; returns boolean success
+  - `HotspotLeaseManager.currentHolder(hotspotId)`: auto-prunes before checking
+  - `HotspotLeaseManager.pruneExpired()`: reclaims all expired leases, returns count
+  - `HotspotLeaseManager.listActive()`: all non-expired leases
+  - `createHotspotManager(hotspots)`: factory that wires registry + lease manager together
+- [x] 29 unit tests; total test count 174
 
 ## Documentation
 

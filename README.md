@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**M4 Semantic Conflict Detection complete.** M0–M4 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**M5 Hotspot Leases complete.** M0–M5 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
@@ -24,6 +24,7 @@ Three layers, in priority order:
 src/
   impact/           # ImpactEstimator — file + domain overlap surfaces per ticket
   scheduler/        # Scheduler — conflict-aware dispatch plan (parallel/sequence/merge)
+  hotspots/         # HotspotRegistry + HotspotLeaseManager — advisory leases for un-mergeable spots
   integration/
     worktrees/      # WorktreeManager — per-task git worktrees off the current tip
     queue/          # GitHubMergeQueueAdapter — adapter over GitHub merge queue
@@ -40,6 +41,7 @@ src/
 tests/
   impact/           # Unit tests for impact estimator (19 tests)
   scheduler/        # Unit tests for conflict-aware scheduler (15 tests)
+  hotspots/         # Unit tests for hotspot registry + lease manager (29 tests)
   integration/      # Unit tests for worktrees (13), queue (15), rerun (27), semantic (21)
   release/          # Unit tests for the release module (35 tests)
 .github/
@@ -183,6 +185,54 @@ Decision rules (by Jaccard overlap score):
 - `0 < overlap < mergeThreshold` → **sequence**: run one ticket after the other
 - `overlap == 0` → **parallel**: safe to run at the same time
 
+## Hotspot leases (`src/hotspots/`)
+
+Hotspots are declared areas — migrations, shared contracts, giant imported files — that genuinely punish a collide-then-redo cycle. They get an advisory lease while the rest of the repo stays lock-free.
+
+### Declaring hotspots
+
+```typescript
+import { createHotspotManager } from './src/hotspots'
+
+const { registry, leases } = createHotspotManager([
+  {
+    id: 'db-migrations',
+    description: 'Database migration files — one at a time',
+    paths: ['src/db/migrations/'],  // prefix pattern: matches any file under this dir
+    domains: ['db'],                 // also triggered by the 'db' domain on the impact surface
+  },
+  {
+    id: 'shared-config',
+    paths: ['src/config.ts'],        // exact path match
+  },
+])
+```
+
+### Checking before dispatch
+
+```typescript
+// Does the ticket's estimated impact surface touch any hotspot?
+const surface = estimator.estimate({ ticketId: 'ENG-42', title: 'Add migration', expectedFiles: ['src/db/migrations/003_add_col.sql'] })
+const check = registry.check(surface)
+// check.touchesHotspot === true
+// check.matches[0].hotspotId === 'db-migrations'
+```
+
+### Acquiring and releasing leases
+
+```typescript
+// Try to acquire before dispatching
+const result = leases.acquire('db-migrations', 'dispatch-99')
+if (!result.acquired) {
+  console.log(`Hotspot held by ${result.holderId} — schedule after it completes`)
+}
+
+// Release when the agent's work is merged or cancelled
+leases.release('db-migrations', 'dispatch-99')
+```
+
+Leases support an optional TTL (`ttlMs`) and are pruned automatically on the next `acquire` or `currentHolder` call.
+
 ## Next milestone
 
-**M4 — Semantic conflicts:** cross-branch typecheck/build detection.
+**M6 — Gates:** scope / CI / QA / HITL gate pipeline with per-domain policy.
