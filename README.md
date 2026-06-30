@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**M8 Releases complete.** M0–M8 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented and the full test suite passes. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker. Documentation is in progress.
 
 ## Project layout
 
@@ -38,6 +38,11 @@ src/
   integrations/
     github/         # GitHub App (webhook registration, push enforcement)
     linear/         # Linear API client + TicketSyncer
+  agent-iface/      # Agent-facing command surface shared by the CLI and MCP server
+    commands.ts     # One function per operation: schedule, hotspot, gate, provenance, release
+    schemas.ts       # Zod schemas shared by both surfaces
+    cli/            # `harbormaster <command> <json-payload>` — single-shot JSON-in/JSON-out CLI
+    mcp/            # MCP server — one tool per command, stdio transport
   config.ts         # Zod-validated config from environment
   index.ts          # Control-plane entry point
 tests/
@@ -48,6 +53,7 @@ tests/
   scheduler/        # Unit tests for conflict-aware scheduler (15 tests)
   integration/      # Unit tests for worktrees (13), queue (15), rerun (27), semantic (21)
   release/          # Unit tests for the git release lifecycle module (35 tests)
+  agent-iface/      # Unit tests for commands, CLI dispatch, and the MCP tool registry (26 tests)
 .github/
   workflows/
     ci.yml          # Typecheck → lint → build → test on every push/PR
@@ -279,6 +285,42 @@ await manager.updateStatus(release.id, 'released')  // sets released_at = NOW()
 const planning = await manager.listReleases('planning')
 ```
 
-## Next milestone
+## Agent interface (`src/agent-iface/`)
 
-**M9 — Agent interface:** CLI + MCP server, end-to-end fleet demo.
+Agents drive the harbormaster loop through two thin surfaces over the same command layer (`src/agent-iface/commands.ts`): a single-shot CLI and a long-running MCP server. Neither surface contains any logic of its own — they validate input against the same zod schemas and call straight into `commands.ts`, so the two can never drift apart.
+
+### CLI
+
+Every subcommand takes a JSON payload, either as the last argument or piped via stdin with `--stdin`, and prints JSON to stdout:
+
+```bash
+npm run cli -- schedule plan '{
+  "tickets": [
+    { "ticketId": "ENG-1", "title": "Refactor release branch logic", "expectedFiles": ["src/release/branch.ts"] },
+    { "ticketId": "ENG-2", "title": "Add hotfix support", "expectedFiles": ["src/release/hotfix.ts"] }
+  ]
+}'
+
+npm run cli -- hotspot check '{"files":["src/db/migrations/002_x.sql"]}'
+npm run cli -- gate run '{"dispatchId":"d1","ticketId":"ENG-1","branch":"feat/ENG-1/x","domains":["release"],"expectedFiles":["src/release/branch.ts"],"actualFiles":["src/release/branch.ts"],"ciStatus":"success"}'
+
+npm run cli -- --help   # lists every command
+```
+
+Once built (`npm run build`), the compiled CLI is also installable as the `harbormaster` bin (see `package.json`).
+
+### MCP server
+
+```bash
+npm run mcp   # starts the harbormaster MCP server on stdio
+```
+
+Registers one tool per command — `schedule_plan`, `hotspot_check`, `hotspot_register`, `hotspot_acquire`, `hotspot_release`, `hotspot_release_by_holder`, `hotspot_list_active`, `gate_run`, `provenance_record`, `provenance_query`, `release_create`, `release_list`, `release_manifest`, `release_notes` — each with a JSON Schema generated from the same zod definitions used by the CLI. Point any MCP-compatible client (Claude Code, Cursor, etc.) at `node dist/agent-iface/mcp/index.js` after `npm run build`.
+
+### Statefulness
+
+Hotspot leases live in an in-process manager. The MCP server is long-running, so leases persist for the life of that process — exactly the "advisory lock" semantics the spec calls for. The CLI is a fresh process per invocation, so leases taken through it do not persist across separate `harbormaster` runs; use the MCP server (or the library directly) when you need leases to outlive a single command. Provenance and release commands are backed by Postgres and persist regardless of which surface calls them.
+
+## Releases milestone status
+
+All milestones in `spec.md` (M0–M9) are implemented: scaffold, worktrees + queue, optimistic re-run, impact + scheduler, semantic conflict detection, hotspot leases, gates, Linear + provenance, Linear-planned releases, and the CLI/MCP agent interface above.

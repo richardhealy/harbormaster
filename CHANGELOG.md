@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M9)
+
+- M9 agent interface: `src/agent-iface/commands.ts` exposes the full agent loop as one function per operation — schedule planning, hotspot leases, the gate pipeline, provenance recording/querying, and release create/list/manifest/notes — validated by zod schemas shared across both surfaces (`src/agent-iface/schemas.ts`)
+- CLI (`src/agent-iface/cli/`): `harbormaster <namespace> <action> '<json>'` — JSON payload in, JSON out, with `--stdin` support and a `--help` listing; added as the `harbormaster` package bin and an `npm run cli` dev script
+- MCP server (`src/agent-iface/mcp/`, `@modelcontextprotocol/sdk`): one tool per command (`schedule_plan`, `hotspot_*`, `gate_run`, `provenance_*`, `release_*`) over stdio, with `npm run mcp` to launch it; hotspot leases persist for the life of the server process, matching the spec's advisory-lock semantics
+- This completes every milestone (M0–M9) in `spec.md`
+- 26 new unit tests (commands, CLI dispatch, MCP tool registry); total test count 318
+
 ### Added — 2026-06-30 (M8)
 
 - M8 releases: `ReleaseManager` (`src/releases/`) manages Linear-planned releases end-to-end — `create` inserts a release record (version, branch, optional `linearCycleId` and `freezeAt`); `buildManifest` fetches tickets from Linear via injectable `ReleaseLinearClient`, maps them to `ManifestTicket[]`, computes summary counts by status and priority, and persists the manifest to the `releases` table; `generateNotes` is a pure function that categories tickets by label into Features / Fixes / Improvements / Other sections and renders markdown links when a ticket has a URL; `setFreezeWindow` sets `freeze_at` and flips status to `'frozen'`; `isInFreezeWindow` compares the current time to `freeze_at`; `updateStatus` stamps `released_at = NOW()` when status reaches `'released'`; `listReleases` supports optional status filtering ordered by `created_at DESC`; all database and Linear dependencies are injected for deterministic testing

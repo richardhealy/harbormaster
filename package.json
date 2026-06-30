@@ -3,16 +3,22 @@
   "version": "0.1.0",
   "description": "A coordination layer for a fleet of AI coding agents: conflict-aware scheduling, optimistic merge queue integration, and on-the-record release management.",
   "main": "dist/index.js",
+  "bin": {
+    "harbormaster": "dist/agent-iface/cli/index.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
+    "cli": "tsx src/agent-iface/cli/index.ts",
+    "mcp": "tsx src/agent-iface/mcp/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src tests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@octokit/app": "^14.0.2",
     "dotenv": "^16.4.5",
     "pg": "^8.12.0",

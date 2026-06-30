@@ -13,7 +13,7 @@
 | M6 | Gates | ☑ Done |
 | M7 | Linear + provenance | ☑ Done |
 | M8 | Releases | ☑ Done |
-| M9 | Agent interface | ☐ Not started |
+| M9 | Agent interface | ☑ Done |
 
 ### M0 — Scaffold (done)
 
@@ -164,6 +164,20 @@
 - [x] `createReleaseManager(pool)` factory
 - [x] 40 new unit tests; total test count 292
 
+### M9 — Agent interface (done)
+
+- [x] `src/agent-iface/schemas.ts` — zod schemas for every agent-facing command, shared by the CLI and MCP server so the two surfaces validate identically
+- [x] `src/agent-iface/commands.ts` — one function per operation an agent needs to drive the loop:
+  - `planSchedule` — wraps `ImpactEstimator` + `Scheduler` end to end
+  - `checkHotspot`, `registerHotspot`, `acquireLease`, `releaseLease`, `releaseLeaseByHolder`, `listActiveLeases` — wrap `HotspotLeaseManager`; default to a process-wide singleton (`getHotspotManager`/`resetHotspotManager`) so leases persist across calls within one long-running MCP session, with an injectable `manager` param for tests and one-off use
+  - `runGatePipeline` — wraps `GatePipeline`; the agent reports the CI status it observed (and optional QA/HITL results) instead of the pipeline calling back out to live infrastructure
+  - `recordProvenance`, `queryProvenance` — wrap `ProvenanceRecorder`; injectable `pool`, defaults to `getPool(loadConfig().DATABASE_URL)`
+  - `createRelease`, `listReleases`, `buildReleaseManifest`, `generateReleaseNotes` — wrap `ReleaseManager`; injectable `pool`/`linearClient`
+- [x] `src/agent-iface/cli/index.ts` — single-shot CLI: `harbormaster <namespace> <action> '<json>'`, payload via positional arg or `--stdin`; `runCli(argv)` exported for testing without spawning a process; `--help` lists every command
+- [x] `src/agent-iface/mcp/server.ts` + `mcp/index.ts` — MCP server (`@modelcontextprotocol/sdk`) over stdio; one `registerTool` per command using the shared zod shapes as the input schema; `createMcpServer()` exported for testing without a transport
+- [x] `package.json` — `bin.harbormaster` (compiled CLI), `npm run cli` / `npm run mcp` (tsx, dev mode)
+- [x] 26 new unit tests (17 commands + 6 CLI dispatch + 3 MCP tool registry); total test count 318
+
 ## Documentation
 
-*(Not yet started — will be seeded once the spec is fully implemented)*
+*(Not yet started — will be seeded now that the spec is fully implemented)*
