@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M4)
+
+- M4 semantic conflict detection: `SemanticConflictDetector` (`src/integration/semantic/`) runs `tsc --noEmit` in each in-flight branch's worktree via an injectable `ExecFn`; `parseTscOutput` converts raw tsc stdout into structured `TypeScriptError` objects; `detect` checks branches in parallel and calls `checkPairConflict` for every pair — flagging conflicts when branch A has type errors in files that branch B modified, when B has errors in A's files, or when both error in the same file; reports a `SemanticConflictReport` with per-branch results, `CrossBranchConflict` entries (with deduplicated `filesInvolved` and a human-readable description), and a top-level `hasConflicts` flag
+- 21 new unit tests covering parser edge cases, branch-level checks, and all cross-conflict detection scenarios; total test count 145
+
 ### Added — 2026-06-30 (M3)
 
 - M3 impact + scheduler: `ImpactEstimator` (`src/impact/`) estimates a ticket's file/directory/domain impact surface from explicit file lists (confidence 1.0), label mappings (0.6), or title/description keywords (0.3); `jaccardSimilarity` and `computeOverlap` measure surface overlap (file Jaccard → directory containment → domain Jaccard)

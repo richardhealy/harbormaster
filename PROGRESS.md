@@ -8,7 +8,7 @@
 | M1 | Worktrees + queue | ☑ Done |
 | M2 | Optimistic re-run | ☑ Done |
 | M3 | Impact + scheduler | ☑ Done |
-| M4 | Semantic conflicts | ☐ Not started |
+| M4 | Semantic conflicts | ☑ Done |
 | M5 | Hotspot leases | ☐ Not started |
 | M6 | Gates | ☐ Not started |
 | M7 | Linear + provenance | ☐ Not started |
@@ -73,6 +73,18 @@
   - Decision labels: `parallel` (same wave, no overlap), `sequence` (later wave, some overlap), `merge` (one agent job)
 - [x] 34 unit tests: 19 for impact, 15 for scheduler (all passing)
 - [x] Total test count: 124
+
+### M4 — Semantic conflicts (done)
+
+- [x] `src/integration/semantic/types.ts` — `BranchInput`, `TypeScriptError`, `BranchCheckResult`, `CrossBranchConflict`, `SemanticConflictReport`, `ExecFn`
+- [x] `src/integration/semantic/index.ts` — `SemanticConflictDetector` class
+  - `parseTscOutput(output)`: parses `tsc --noEmit` stdout into structured `TypeScriptError` objects via regex `path(line,col): error|warning TSxxxx: message`
+  - `checkBranch(input)`: runs `npx tsc --noEmit` in the branch's worktree via injectable `ExecFn`; returns `BranchCheckResult` with `clean` flag, error list, and duration
+  - `detect(branches)`: checks all branches in parallel, then cross-references results via `findCrossConflicts`
+  - `checkPairConflict(A, B)`: detects semantic conflicts when (a) branch A has errors in files changed by B, (b) B has errors in files changed by A, or (c) both have errors in the same file; returns a `CrossBranchConflict` with deduplicated `filesInvolved` and a human-readable `description`
+- [x] `createDefaultExec()` — default Node.js `child_process.exec` adapter; `|| true` in the shell command ensures stdout is always captured
+- [x] `createSemanticConflictDetector(tsconfigPath?)` — factory with optional tsconfig override
+- [x] 21 unit tests (all passing); total test count 145
 
 ### M1 — Worktrees + queue (done)
 

@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**M3 Impact + Scheduler complete.** M0–M3 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**M4 Semantic Conflict Detection complete.** M0–M4 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
@@ -28,6 +28,7 @@ src/
     worktrees/      # WorktreeManager — per-task git worktrees off the current tip
     queue/          # GitHubMergeQueueAdapter — adapter over GitHub merge queue
     rerun/          # Rebaser, CIChecker, Rerunner — optimistic re-dispatch loop
+    semantic/       # SemanticConflictDetector — cross-branch tsc typecheck + conflict analysis
   release/          # ported release.sh lifecycle (semver, branches, tags, hotfix, sync)
   db/               # Postgres connection, migration runner, TypeScript schema types
     migrations/     # SQL migration files (applied in order)
@@ -39,7 +40,7 @@ src/
 tests/
   impact/           # Unit tests for impact estimator (19 tests)
   scheduler/        # Unit tests for conflict-aware scheduler (15 tests)
-  integration/      # Unit tests for worktrees (13), queue (15), rerun (27)
+  integration/      # Unit tests for worktrees (13), queue (15), rerun (27), semantic (21)
   release/          # Unit tests for the release module (35 tests)
 .github/
   workflows/
