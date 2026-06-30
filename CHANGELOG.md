@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M8)
+
+- M8 releases: `ReleaseManager` (`src/releases/`) manages Linear-planned releases end to end — `create` inserts a release with status `'planning'`; `buildManifest` maps `LinearTicket[]` to a structured `ReleaseManifest`; `saveManifest` persists manifest and generated notes in one UPDATE; `freeze` sets the freeze window (status `'frozen'` + `freeze_at`); `isFrozen` returns true when the release is explicitly frozen or its scheduled freeze time has passed; `markReleased` stamps `released_at` and advances to `'released'`
+- `generateNotes` (`src/releases/notes.ts`) renders a `ReleaseManifest` as a Markdown release-notes document: entries grouped by first label (alphabetically, "Other" last), sorted by priority within each group, with Markdown links for tickets that carry a URL
+- Extended `LinearClient` with `listCycleIssues(cycleId, limit?)` — fetches issues belonging to a Linear cycle (sprint) for release planning; labels normalised from GraphQL connection shape to flat array
+- 44 new unit tests (24 ReleaseManager + 15 notes + 5 LinearClient.listCycleIssues); total test count 296
+
 ### Added — 2026-06-30 (M7)
 
 - M7 Linear + provenance: `LinearClient` (`src/integrations/linear/`) implements the full Linear GraphQL API — `getTicket`, `updateTicketStatus`, `listTeamIssues`, and `getWorkflowStates` — with an injectable `FetchFn` for deterministic testing; labels are normalised from GraphQL connection shape (`{ nodes: [] }`) to a flat array

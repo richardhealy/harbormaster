@@ -12,7 +12,7 @@
 | M5 | Hotspot leases | ☑ Done |
 | M6 | Gates | ☑ Done |
 | M7 | Linear + provenance | ☑ Done |
-| M8 | Releases | ☐ Not started |
+| M8 | Releases | ☑ Done |
 | M9 | Agent interface | ☐ Not started |
 
 ### M0 — Scaffold (done)
@@ -147,6 +147,22 @@
   - `OctokitLike` interface keeps the adapter testable without real GitHub credentials
 - [x] 28 unit tests across both modules (13 worktrees + 15 queue), all passing
 - [x] Total: 63 tests passing
+
+### M8 — Releases (done)
+
+- [x] `src/releases/types.ts` — `ReleaseStatus`, `ManifestEntry`, `ReleaseManifest`, `ReleaseRecord`, `CreateReleaseOptions`, `ReleasePool`
+- [x] `src/releases/notes.ts` — `generateNotes(manifest)`: pure Markdown renderer; groups entries by first label (alphabetically), "Other" section last; sorts by priority within each group (urgent → high → medium → low → no-priority); emits `[identifier](url)` links when url is present
+- [x] `src/releases/manager.ts` — `ReleaseManager` class
+  - `create(options)`: inserts a release row (status = 'planning') and returns a `ReleaseRecord`
+  - `getRelease(idOrVersion)`: looks up by UUID or version string; returns null when not found
+  - `buildManifest(version, tickets)`: maps `LinearTicket[]` to a `ReleaseManifest` (pure, no DB I/O)
+  - `saveManifest(releaseId, tickets)`: builds manifest + notes and persists both via a single UPDATE
+  - `freeze(releaseId, at?)`: sets `status = 'frozen'` and `freeze_at`; defaults to current time
+  - `isFrozen(idOrVersion)`: returns true when status is 'frozen' or `freeze_at` has passed
+  - `markReleased(releaseId)`: sets `status = 'released'` and stamps `released_at`
+  - `createReleaseManager(pool)` factory
+- [x] `src/integrations/linear/index.ts` — extended `LinearClient` with `listCycleIssues(cycleId, limit?)`: fetches issues from a Linear cycle (sprint) via `cycle { issues { nodes } }` GraphQL query; normalises labels from connection shape to flat array
+- [x] 44 new unit tests (24 ReleaseManager + 15 notes + 5 LinearClient.listCycleIssues); total test count 296
 
 ## Documentation
 

@@ -116,4 +116,24 @@ export class LinearClient {
     )
     return data.workflowStates?.nodes ?? []
   }
+
+  /** Fetch all issues belonging to a Linear cycle (sprint). */
+  async listCycleIssues(cycleId: string, limit = 50): Promise<LinearTicket[]> {
+    const data = await this.gql<{ cycle: { issues: { nodes: RawIssue[] } } | null }>(
+      `query GetCycleIssues($cycleId: String!, $limit: Int!) {
+        cycle(id: $cycleId) {
+          issues(first: $limit) {
+            nodes {
+              id identifier title description priority url createdAt updatedAt
+              state { id name type }
+              labels { nodes { id name } }
+              assignee { id name email }
+            }
+          }
+        }
+      }`,
+      { cycleId, limit },
+    )
+    return (data.cycle?.issues?.nodes ?? []).map(normaliseTicket)
+  }
 }

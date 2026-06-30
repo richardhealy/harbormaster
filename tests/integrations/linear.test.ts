@@ -176,3 +176,49 @@ describe('LinearClient.getWorkflowStates', () => {
     expect(await client.getWorkflowStates('team-1')).toHaveLength(0)
   })
 })
+
+// ---------------------------------------------------------------------------
+// listCycleIssues
+// ---------------------------------------------------------------------------
+
+describe('LinearClient.listCycleIssues', () => {
+  it('returns normalised tickets for a cycle', async () => {
+    const fetch = makeFetch({ data: { cycle: { issues: { nodes: [SAMPLE_ISSUE] } } } })
+    const client = new LinearClient('api-key', fetch)
+    const tickets = await client.listCycleIssues('cycle-1')
+    expect(tickets).toHaveLength(1)
+    expect(tickets[0].identifier).toBe('ENG-123')
+    expect(tickets[0].labels).toEqual([{ id: 'label-1', name: 'backend' }])
+  })
+
+  it('returns empty array when the cycle has no issues', async () => {
+    const fetch = makeFetch({ data: { cycle: { issues: { nodes: [] } } } })
+    const client = new LinearClient('api-key', fetch)
+    expect(await client.listCycleIssues('cycle-1')).toHaveLength(0)
+  })
+
+  it('returns empty array when cycle is null', async () => {
+    const fetch = makeFetch({ data: { cycle: null } })
+    const client = new LinearClient('api-key', fetch)
+    expect(await client.listCycleIssues('cycle-missing')).toHaveLength(0)
+  })
+
+  it('passes cycleId and limit as GraphQL variables', async () => {
+    const fetch = makeFetch({ data: { cycle: { issues: { nodes: [] } } } })
+    const client = new LinearClient('api-key', fetch)
+    await client.listCycleIssues('cycle-1', 25)
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    const body = JSON.parse(init.body as string) as { variables: Record<string, unknown> }
+    expect(body.variables.cycleId).toBe('cycle-1')
+    expect(body.variables.limit).toBe(25)
+  })
+
+  it('defaults limit to 50 when not specified', async () => {
+    const fetch = makeFetch({ data: { cycle: { issues: { nodes: [] } } } })
+    const client = new LinearClient('api-key', fetch)
+    await client.listCycleIssues('cycle-1')
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    const body = JSON.parse(init.body as string) as { variables: { limit: number } }
+    expect(body.variables.limit).toBe(50)
+  })
+})

@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**M6 Gate Pipeline complete.** M0–M6 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**M8 Releases complete.** M0–M8 done. Only M9 (Agent interface) remains. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
@@ -32,11 +32,12 @@ src/
     semantic/       # SemanticConflictDetector — cross-branch tsc typecheck + conflict analysis
   hotspots/         # HotspotLeaseManager — advisory leases for declared un-mergeable paths
   release/          # ported release.sh lifecycle (semver, branches, tags, hotfix, sync)
+  releases/         # ReleaseManager — Linear-planned releases, manifests, notes, freeze windows
   db/               # Postgres connection, migration runner, TypeScript schema types
     migrations/     # SQL migration files (applied in order)
   integrations/
     github/         # GitHub App (webhook registration, push enforcement)
-    linear/         # Linear API client stub (M7)
+    linear/         # LinearClient — full GraphQL API including cycle/sprint issues (M7+M8)
   config.ts         # Zod-validated config from environment
   index.ts          # Control-plane entry point
 tests/
@@ -45,7 +46,8 @@ tests/
   impact/           # Unit tests for impact estimator (19 tests)
   scheduler/        # Unit tests for conflict-aware scheduler (15 tests)
   integration/      # Unit tests for worktrees (13), queue (15), rerun (27), semantic (21)
-  release/          # Unit tests for the release module (35 tests)
+  releases/         # Unit tests for release manager (24) and notes generator (15)
+  release/          # Unit tests for the release lifecycle module (35 tests)
 .github/
   workflows/
     ci.yml          # Typecheck → lint → build → test on every push/PR
