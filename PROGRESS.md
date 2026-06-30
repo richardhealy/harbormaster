@@ -12,7 +12,7 @@
 | M5 | Hotspot leases | ☑ Done |
 | M6 | Gates | ☑ Done |
 | M7 | Linear + provenance | ☑ Done |
-| M8 | Releases | ☐ Not started |
+| M8 | Releases | ☑ Done |
 | M9 | Agent interface | ☐ Not started |
 
 ### M0 — Scaffold (done)
@@ -147,6 +147,21 @@
   - `OctokitLike` interface keeps the adapter testable without real GitHub credentials
 - [x] 28 unit tests across both modules (13 worktrees + 15 queue), all passing
 - [x] Total: 63 tests passing
+
+### M8 — Releases (done)
+
+- [x] `src/releases/types.ts` — `ReleaseStatus`, `PRIORITY_LABELS`, `ReleaseManifestEntry`, `ReleaseManifest`, `CreateReleaseOptions`, `ReleaseRecord`, `ManifestBuildOptions`
+- [x] `src/releases/index.ts` — `ReleasePlanner` class
+  - `createRelease(version, branch, options)`: inserts row into `releases` table (status `'planning'`), records `release.created` provenance event
+  - `buildManifest(releaseId, teamId, options)`: fetches Linear tickets with optional `labelFilter` and `stateTypeFilter`, converts to `ReleaseManifestEntry` objects, groups `byPriority` and `byLabel`, persists manifest to DB
+  - `generateNotes(manifest)`: produces Markdown with priority-ordered sections, ticket identifiers hyperlinked to Linear URLs, assignee attribution
+  - `setFreezeWindow(releaseId, freezeAt)`: sets `freeze_at` on the release row
+  - `isFrozen(releaseId)`: returns true when `status = 'frozen'` OR `freeze_at ≤ now`
+  - `activateRelease(releaseId)`: sets status to `'active'`
+  - `publishRelease(releaseId)`: sets status to `'released'`, stamps `released_at`, records `release.tagged` provenance event
+  - `getRelease(releaseId)` / `listReleases(status?)`: read access with optional status filter
+  - `createReleasePlanner(pool, linear, provenance)` factory with injectable interfaces
+- [x] 30 unit tests; total test count 282
 
 ## Documentation
 
