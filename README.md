@@ -18,6 +18,10 @@ Three layers, in priority order:
 
 **Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented and the full test suite passes. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker. Documentation is in progress.
 
+## Documentation
+
+- [docs/api.md](./docs/api.md) — full reference for the agent-facing command surface (CLI + MCP), shared by both transports: request/response shapes, configuration, and error cases for all 14 commands.
+
 ## Project layout
 
 ```

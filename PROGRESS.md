@@ -183,7 +183,7 @@
 | # | Deliverable | Status |
 |---|-------------|--------|
 | a | Doc comments (TSDoc) across the public surface | ☑ Done |
-| b | API reference documentation (CLI/MCP command surface) | ☐ Not started |
+| b | API reference documentation (CLI/MCP command surface) | ☑ Done |
 | c | Architecture dossier (`docs/architecture.md`) | ☐ Not started |
 | d | Integration guide(s) (`docs/integration.md`) | ☐ Not started |
 | e | Usage/how-to guides, `docs/` index, final README pass | ☐ Not started |
@@ -203,3 +203,26 @@
   semantics) rather than restating signatures
 - [x] `npm run build`, `npm run lint`, and the full test suite (318 tests)
   verified green after the change
+
+### b — API reference (done)
+
+- [x] `docs/api.md` — full reference for the agent-facing command surface
+  (the only API harbormaster exposes: no HTTP server, just the CLI/MCP
+  command layer in `src/agent-iface/`)
+  - Conventions shared by both surfaces: CLI invocation/exit codes, MCP tool
+    result shape, configuration env vars, error cases
+  - All 14 commands (`schedule_plan`, 6 `hotspot_*`, `gate_run`, 2
+    `provenance_*`, 4 `release_*`): request field tables with types and
+    required/optional, response shape with a worked JSON example, and
+    command-specific error notes
+  - Domain risk policy table (which domains require QA/HITL and at what
+    scope-drift threshold) reproduced alongside `gate_run` since the gate
+    response depends on it
+  - A worked end-to-end example chaining schedule → gate → provenance →
+    release across four CLI calls
+- [x] Fixed a pre-existing `npm run typecheck` failure surfaced while
+  verifying this change: `ReleasesPool` was `Pick<Pool, 'query'>`, which
+  pulls in `pg`'s fully overloaded `query` signature that the test mocks
+  couldn't structurally satisfy. Narrowed it to a single-shape `query()`
+  interface matching the `ProvenancePool`/`SyncPool` pattern used elsewhere
+  in the codebase. `npm run typecheck` (part of CI) is green again.

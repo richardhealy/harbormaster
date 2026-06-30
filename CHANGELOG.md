@@ -4,6 +4,23 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (docs: API reference)
+
+- `docs/api.md`: full reference for the agent-facing command surface (the
+  only API harbormaster exposes — CLI and MCP server over the same command
+  layer): conventions, configuration, error cases, and request/response
+  shapes for all 14 commands, plus a worked schedule → gate → provenance →
+  release example
+- README: link to `docs/api.md`
+
+### Fixed — 2026-06-30
+
+- `npm run typecheck` (part of CI) was failing: `ReleasesPool` was
+  `Pick<Pool, 'query'>`, pulling in `pg`'s fully overloaded `query` signature
+  that test mocks couldn't structurally satisfy. Narrowed to a single-shape
+  `query()` interface matching the `ProvenancePool`/`SyncPool` pattern used
+  elsewhere
+
 ### Added — 2026-06-30 (docs: TSDoc coverage)
 
 - Added TSDoc comments to every previously-undocumented exported class,
