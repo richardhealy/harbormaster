@@ -1,4 +1,3 @@
-import type { Pool } from 'pg'
 import type { LinearTicket } from '../integrations/linear/types'
 import type {
   ManifestTicket,
@@ -10,7 +9,10 @@ import type {
 
 export type { ManifestTicket, ReleaseManifest, ReleaseRecord, ReleaseStatus, CreateReleaseOptions }
 
-export type ReleasesPool = Pick<Pool, 'query'>
+/** Subset of `pg.Pool` the release manager needs; keeps it testable without a real database. */
+export interface ReleasesPool {
+  query(text: string, values?: unknown[]): Promise<{ rows: unknown[] }>
+}
 
 /** Subset of {@link LinearClient} the release manager needs, kept narrow so tests can stub it without the full client. */
 export interface ReleaseLinearClient {
@@ -69,21 +71,20 @@ export class ReleaseManager {
   /** Inserts a new release in `planning` status. */
   async create(version: string, options: CreateReleaseOptions): Promise<ReleaseRecord> {
     const { branch, linearCycleId, freezeAt } = options
-    const result = await this.pool.query<DBRow>(
+    const result = await this.pool.query(
       `INSERT INTO releases (version, branch, status, linear_cycle_id, freeze_at)
        VALUES ($1, $2, 'planning', $3, $4)
        RETURNING *`,
       [version, branch, linearCycleId ?? null, freezeAt ?? null],
     )
-    return toRecord(result.rows[0])
+    return toRecord(result.rows[0] as DBRow)
   }
 
   /** Fetches one release by id, or `null` if it doesn't exist. */
   async getRelease(releaseId: string): Promise<ReleaseRecord | null> {
-    const result = await this.pool.query<DBRow>('SELECT * FROM releases WHERE id = $1', [
-      releaseId,
-    ])
-    return result.rows[0] ? toRecord(result.rows[0]) : null
+    const result = await this.pool.query('SELECT * FROM releases WHERE id = $1', [releaseId])
+    const row = result.rows[0] as DBRow | undefined
+    return row ? toRecord(row) : null
   }
 
   /** Transitions a release's status; reaching `'released'` also stamps `released_at`. */
@@ -105,11 +106,10 @@ export class ReleaseManager {
 
   /** True once `at` (default: now) reaches the release's `freeze_at`; `false` if no freeze window is set. */
   async isInFreezeWindow(releaseId: string, at: Date = new Date()): Promise<boolean> {
-    const result = await this.pool.query<{ freeze_at: Date | null }>(
-      'SELECT freeze_at FROM releases WHERE id = $1',
-      [releaseId],
-    )
-    const freezeAt = result.rows[0]?.freeze_at
+    const result = await this.pool.query('SELECT freeze_at FROM releases WHERE id = $1', [
+      releaseId,
+    ])
+    const freezeAt = (result.rows[0] as { freeze_at: Date | null } | undefined)?.freeze_at
     if (!freezeAt) return false
     return at >= new Date(freezeAt)
   }
@@ -231,16 +231,14 @@ export class ReleaseManager {
   /** Lists releases newest-first, optionally filtered to one status. */
   async listReleases(status?: ReleaseStatus): Promise<ReleaseRecord[]> {
     if (status !== undefined) {
-      const result = await this.pool.query<DBRow>(
+      const result = await this.pool.query(
         'SELECT * FROM releases WHERE status = $1 ORDER BY created_at DESC',
         [status],
       )
-      return result.rows.map(toRecord)
+      return (result.rows as DBRow[]).map(toRecord)
     }
-    const result = await this.pool.query<DBRow>(
-      'SELECT * FROM releases ORDER BY created_at DESC',
-    )
-    return result.rows.map(toRecord)
+    const result = await this.pool.query('SELECT * FROM releases ORDER BY created_at DESC')
+    return (result.rows as DBRow[]).map(toRecord)
   }
 }
 
