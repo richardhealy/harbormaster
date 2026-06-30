@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M3)
+
+- M3 impact + scheduler: `ImpactEstimator` (`src/impact/`) estimates a ticket's file/directory/domain impact surface from explicit file lists (confidence 1.0), label mappings (0.6), or title/description keywords (0.3); `jaccardSimilarity` and `computeOverlap` measure surface overlap (file Jaccard → directory containment → domain Jaccard)
+- `Scheduler` (`src/scheduler/`) takes tickets + impact surfaces and produces a `DispatchPlan`: union-find clusters tickets with Jaccard ≥ mergeThreshold into merged jobs, Kahn's topological sort places overlapping groups in later waves, and non-overlapping groups share the same wave; decision labels are `parallel`, `sequence`, or `merge`
+- 34 new unit tests (19 impact + 15 scheduler); total test count 124
+
 ### Added — 2026-06-30 (M2)
 
 - M2 optimistic re-run: `Rebaser` (`src/integration/rerun/rebase.ts`) rebases a worktree branch onto a new tip via a per-directory `GitFactory`; on conflict it collects unmerged files via `git diff --name-only --diff-filter=U` and aborts to restore a clean state; on success it returns the new HEAD SHA

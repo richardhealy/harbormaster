@@ -16,15 +16,18 @@ Three layers, in priority order:
 
 ## Status
 
-**M1 Worktrees + queue complete.** See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**M3 Impact + Scheduler complete.** M0–M3 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
 ```
 src/
+  impact/           # ImpactEstimator — file + domain overlap surfaces per ticket
+  scheduler/        # Scheduler — conflict-aware dispatch plan (parallel/sequence/merge)
   integration/
     worktrees/      # WorktreeManager — per-task git worktrees off the current tip
     queue/          # GitHubMergeQueueAdapter — adapter over GitHub merge queue
+    rerun/          # Rebaser, CIChecker, Rerunner — optimistic re-dispatch loop
   release/          # ported release.sh lifecycle (semver, branches, tags, hotfix, sync)
   db/               # Postgres connection, migration runner, TypeScript schema types
     migrations/     # SQL migration files (applied in order)
@@ -34,7 +37,9 @@ src/
   config.ts         # Zod-validated config from environment
   index.ts          # Control-plane entry point
 tests/
-  integration/      # Unit tests for worktrees (13 tests) and queue (15 tests)
+  impact/           # Unit tests for impact estimator (19 tests)
+  scheduler/        # Unit tests for conflict-aware scheduler (15 tests)
+  integration/      # Unit tests for worktrees (13), queue (15), rerun (27)
   release/          # Unit tests for the release module (35 tests)
 .github/
   workflows/
@@ -124,6 +129,59 @@ await queue.listQueued()                       // lists all PRs with auto-merge 
 queue.updateStatus(42, 'merged')              // called from merge_group webhook
 ```
 
+## Scheduler (`src/impact/` + `src/scheduler/`)
+
+The conflict-aware scheduler is the core of harbormaster. It takes a set of tickets with estimated impact surfaces and produces a dispatch plan that prevents most collisions before work begins.
+
+### Impact estimation (`src/impact/`)
+
+```typescript
+import { ImpactEstimator } from './src/impact'
+
+const estimator = new ImpactEstimator()
+
+// From explicit file list (confidence 1.0)
+const surface = estimator.estimate({
+  ticketId: 'ENG-1',
+  title: 'Refactor release branch logic',
+  expectedFiles: ['src/release/branch.ts', 'src/release/tags.ts'],
+})
+
+// From labels/keywords (confidence 0.6 / 0.3)
+const surface2 = estimator.estimate({
+  ticketId: 'ENG-2',
+  title: 'Add hotfix support',
+  labels: ['release'],
+})
+```
+
+### Scheduling (`src/scheduler/`)
+
+```typescript
+import { Scheduler } from './src/scheduler'
+
+const scheduler = new Scheduler({ mergeThreshold: 0.5, sequenceThreshold: 0 })
+
+const plan = scheduler.plan(
+  [{ ticketId: 'ENG-1' }, { ticketId: 'ENG-2' }, { ticketId: 'ENG-3' }],
+  new Map([
+    ['ENG-1', surface1],
+    ['ENG-2', surface2],
+    ['ENG-3', surface3],
+  ])
+)
+
+// plan.waves — ordered execution waves
+// plan.waves[0] — runs in parallel (no overlap)
+// plan.waves[1] — runs after wave 0 completes (overlapping groups)
+// Merged groups (decision: 'merge') go to one agent as a single job
+```
+
+Decision rules (by Jaccard overlap score):
+- `overlap >= mergeThreshold` → **merge**: dispatch both tickets to one agent as a single job
+- `0 < overlap < mergeThreshold` → **sequence**: run one ticket after the other
+- `overlap == 0` → **parallel**: safe to run at the same time
+
 ## Next milestone
 
-**M2 — Optimistic re-run:** rebase, CI-on-result, automatic loser re-dispatch.
+**M4 — Semantic conflicts:** cross-branch typecheck/build detection.

@@ -7,7 +7,7 @@
 | M0 | Scaffold: control-plane, Postgres, GitHub App, release/, CI | ☑ Done |
 | M1 | Worktrees + queue | ☑ Done |
 | M2 | Optimistic re-run | ☑ Done |
-| M3 | Impact + scheduler | ☐ Not started |
+| M3 | Impact + scheduler | ☑ Done |
 | M4 | Semantic conflicts | ☐ Not started |
 | M5 | Hotspot leases | ☐ Not started |
 | M6 | Gates | ☐ Not started |
@@ -54,6 +54,25 @@
   - `handleFailure(options, redispatch)`: full orchestration — cleanup → get new tip → call redispatch callback → create new worktree; returns `{ exhausted: true }` on limit
 - [x] `src/integration/rerun/types.ts` — `RebaseResult`, `CIResult`, `RerunOptions`, `RerunResult`, `RedispatchFn` types
 - [x] 27 unit tests; total test count 90
+
+### M3 — Impact + scheduler (done)
+
+- [x] `src/impact/types.ts` — `ImpactEstimateInput`, `ImpactSurface`, `DomainMap`, `DEFAULT_DOMAIN_MAP`
+- [x] `src/impact/index.ts` — `ImpactEstimator` class
+  - `estimate(input)`: from explicit `expectedFiles` (confidence 1.0), labels (0.6), or title/description keywords (0.3)
+  - Derives directories and domains from file paths using a configurable keyword map
+  - `jaccardSimilarity(a, b)`: set intersection / union for file/domain arrays
+  - `computeOverlap(a, b)`: file-level Jaccard when concrete files are known; directory containment check; domain Jaccard as fallback
+  - `deriveDirectories(files)`: extracts unique parent directories from file lists
+- [x] `src/scheduler/types.ts` — `ScheduleDecision`, `ScheduledGroup`, `DispatchWave`, `DispatchPlan`, `SchedulerTicket`, `SchedulerConfig`, `DEFAULT_SCHEDULER_CONFIG`
+- [x] `src/scheduler/index.ts` — `Scheduler` class
+  - `plan(tickets, surfaces)`: produces a `DispatchPlan` with ordered waves
+  - Union-find clustering: tickets with Jaccard ≥ mergeThreshold are merged into one job
+  - Kahn's topological sort: groups with any overlap > sequenceThreshold land in later waves
+  - `combinedSurface` on each group: union of all member tickets' impact surfaces
+  - Decision labels: `parallel` (same wave, no overlap), `sequence` (later wave, some overlap), `merge` (one agent job)
+- [x] 34 unit tests: 19 for impact, 15 for scheduler (all passing)
+- [x] Total test count: 124
 
 ### M1 — Worktrees + queue (done)
 
