@@ -9,7 +9,7 @@
 | M2 | Optimistic re-run | ☑ Done |
 | M3 | Impact + scheduler | ☑ Done |
 | M4 | Semantic conflicts | ☑ Done |
-| M5 | Hotspot leases | ☐ Not started |
+| M5 | Hotspot leases | ☑ Done |
 | M6 | Gates | ☐ Not started |
 | M7 | Linear + provenance | ☐ Not started |
 | M8 | Releases | ☐ Not started |
@@ -85,6 +85,21 @@
 - [x] `createDefaultExec()` — default Node.js `child_process.exec` adapter; `|| true` in the shell command ensures stdout is always captured
 - [x] `createSemanticConflictDetector(tsconfigPath?)` — factory with optional tsconfig override
 - [x] 21 unit tests (all passing); total test count 145
+
+### M5 — Hotspot leases (done)
+
+- [x] `src/hotspots/types.ts` — `Hotspot`, `HotspotLease`, `AcquireResult`, `HotspotCheck`, `HotspotLeaseManagerConfig`
+- [x] `src/hotspots/index.ts` — `HotspotLeaseManager` class
+  - `matchHotspots(files)`: maps repo-relative paths to declared hotspots via an embedded glob engine (`*` = non-separator chars, `**` = any chars); returns deduplicated list
+  - `acquire(hotspotId, dispatchId)`: non-blocking; returns `{ acquired: true, lease }` on first take or `{ acquired: false, heldBy, heldSince, hotspotId }` when held
+  - `release(hotspotId, dispatchId)`: ownership-checked release; returns `false` when not held by caller (idempotent-safe)
+  - `check(hotspotId)`: returns current `HotspotCheck` with `isHeld` flag and active `lease`
+  - `listHeld()`: returns all non-expired leases
+  - `purgeExpired()`: evicts leases past their TTL; called automatically before every read/write; returns count removed
+  - Configurable `leaseTtlMs` (0 = no expiry) and injectable `now` clock for testability
+- [x] `DEFAULT_HOTSPOTS`: `db-migrations` (matches `src/db/migrations/**`, `migrations/**`, `**/*.migration.{ts,sql}`) and `shared-contracts` (matches `src/types/index.ts`, `src/contracts/**`)
+- [x] `createHotspotLeaseManager(hotspots?, options?)` factory
+- [x] 30 unit tests; total test count 175
 
 ### M1 — Worktrees + queue (done)
 
