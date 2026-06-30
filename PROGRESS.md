@@ -12,7 +12,7 @@
 | M5 | Hotspot leases | ☑ Done |
 | M6 | Gates | ☑ Done |
 | M7 | Linear + provenance | ☑ Done |
-| M8 | Releases | ☐ Not started |
+| M8 | Releases | ☑ Done |
 | M9 | Agent interface | ☐ Not started |
 
 ### M0 — Scaffold (done)
@@ -73,6 +73,26 @@
   - Decision labels: `parallel` (same wave, no overlap), `sequence` (later wave, some overlap), `merge` (one agent job)
 - [x] 34 unit tests: 19 for impact, 15 for scheduler (all passing)
 - [x] Total test count: 124
+
+### M8 — Releases (done)
+
+- [x] `src/releases/types.ts` — `ReleaseStatus`, `ReleaseManifestEntry`, `ReleaseManifest`, `Release`, `CreateReleaseOptions`, `UpdateReleaseOptions`, `ReleasePlan`, `FreezeWindowResult`, `ReleasesPool`, `ReleaseNotesOptions`, `LinearIssueFilter`
+- [x] `src/releases/manifest.ts` — `ManifestBuilder.build(version, tickets, dispatchMap?)`
+  - Sorts tickets by ascending priority; maps labels to flat string array; carries `dispatchId`/`mergedAt` from an optional dispatch map; injectable `NowFn` for deterministic `generatedAt`
+- [x] `src/releases/notes.ts` — `ReleaseNotesGenerator.generate(manifest, options?)`
+  - Groups entries by label (feat → Features, fix → Bug Fixes, chore → Maintenance, docs → Documentation, other → Other Changes) in canonical display order; per-entry markdown links; optional assignee annotation; `_Generated …_` footer; `groupByLabel: false` emits a flat list
+- [x] `src/releases/freeze.ts` — `FreezeWindowManager`
+  - `isFrozen(releases)`: frozen if any release has `status = 'frozen'` or a `freeze_at ≤ now` with `status = 'planning'`; ignores released/cancelled releases
+  - `shouldFreeze(release)`: single-release variant; both accept injectable `ClockFn`
+- [x] `src/releases/planner.ts` — `ReleasePlanner`
+  - `planFromTeamIssues(teamId, version, branch, options?)`: fetches via `LinearClient.listTeamIssues`, builds manifest + notes, returns `ReleasePlan`
+  - `planFromTickets(tickets, version, branch, linearCycleId?)`: pure in-process plan, no network call
+- [x] `src/releases/index.ts` — `ReleaseManager` with injectable `ReleasesPool` and optional `LinearClient`
+  - CRUD: `createRelease`, `getRelease`, `getByVersion`, `listReleases`, `updateRelease`
+  - Release lifecycle: `attachManifest`, `setFreezeWindow`, `checkFreeze`, `freeze`, `markReleased`
+  - `planFromLinear` delegates to `ReleasePlanner` (throws if no client injected)
+  - `createReleaseManager(pool, linear?)` factory
+- [x] 52 unit tests; total test count 303
 
 ### M7 — Linear + provenance (done)
 

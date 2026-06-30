@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M8)
+
+- M8 releases: `ReleaseManager` (`src/releases/`) assembles Linear-planned releases into versioned manifests, generates markdown release notes, and manages freeze windows
+- `ManifestBuilder` maps a list of `LinearTicket` objects (with optional dispatch-id/mergedAt context) to a `ReleaseManifest`; tickets are sorted by ascending Linear priority; an injectable `NowFn` makes `generatedAt` deterministic in tests
+- `ReleaseNotesGenerator` converts a manifest to markdown: a top-level version heading, label-grouped sections (Features / Bug Fixes / Maintenance / Documentation / Other Changes) in a canonical display order, per-entry links, optional assignee annotation, and a `_Generated …_` footer
+- `FreezeWindowManager` answers `isFrozen(releases)` — returns `{ frozen: true, releaseId, version }` when any release has `status = 'frozen'` or a `freeze_at` date that has already passed; `shouldFreeze(release)` checks a single release against the clock; both accept an injectable `ClockFn` for deterministic testing
+- `ReleasePlanner` builds a `ReleasePlan` (tickets + manifest + notes) either from a provided ticket array (`planFromTickets`) or by fetching from Linear via `listTeamIssues` (`planFromTeamIssues`); an optional `linearCycleId` is carried through for traceability
+- `ReleaseManager` persists releases to the `releases` Postgres table via an injectable `ReleasesPool`; exposes `createRelease`, `getRelease`, `getByVersion`, `listReleases` (with optional status filter), `updateRelease`, `attachManifest` (builds + persists manifest + notes in one call), `setFreezeWindow`, `checkFreeze` (queries DB then delegates to `FreezeWindowManager`), `freeze`, `markReleased`, and `planFromLinear` (requires an injected `LinearClient`)
+- 52 new unit tests; total test count 303
+
 ### Added — 2026-06-30 (M7)
 
 - M7 Linear + provenance: `LinearClient` (`src/integrations/linear/`) implements the full Linear GraphQL API — `getTicket`, `updateTicketStatus`, `listTeamIssues`, and `getWorkflowStates` — with an injectable `FetchFn` for deterministic testing; labels are normalised from GraphQL connection shape (`{ nodes: [] }`) to a flat array
