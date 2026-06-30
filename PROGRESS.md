@@ -9,7 +9,7 @@
 | M2 | Optimistic re-run | ☑ Done |
 | M3 | Impact + scheduler | ☑ Done |
 | M4 | Semantic conflicts | ☑ Done |
-| M5 | Hotspot leases | ☐ Not started |
+| M5 | Hotspot leases | ☑ Done |
 | M6 | Gates | ☐ Not started |
 | M7 | Linear + provenance | ☐ Not started |
 | M8 | Releases | ☐ Not started |
@@ -73,6 +73,21 @@
   - Decision labels: `parallel` (same wave, no overlap), `sequence` (later wave, some overlap), `merge` (one agent job)
 - [x] 34 unit tests: 19 for impact, 15 for scheduler (all passing)
 - [x] Total test count: 124
+
+### M5 — Hotspot leases (done)
+
+- [x] `src/hotspots/types.ts` — `Hotspot`, `Lease`, `LeaseRequest`, `LeaseResult`, `HotspotCheckResult`, `ClockFn`
+- [x] `src/hotspots/index.ts` — `HotspotLeaseManager` class
+  - `register(hotspot)`: declares a new hotspot (replaces on duplicate name)
+  - `check(files)`: returns `HotspotCheckResult` (touchesHotspot, matches) without acquiring a lease
+  - `acquire(request)`: grants a lease (`'granted'`), blocks when another holder is active (`'blocked'`), or skips when no hotspot is matched (`'not-required'`); respects optional TTL
+  - `release(leaseId)`: releases a lease by ID; returns true if found
+  - `releaseByHolder(holderId)`: releases all leases held by a given dispatch/agent; returns count
+  - `listActive()`: returns non-expired leases (prunes first)
+  - `pruneExpired()`: removes expired leases, returns count removed
+  - `matchesPattern(filePath, pattern)`: exported glob matcher supporting exact, directory-prefix (`/`), single-segment (`*`), and cross-segment (`**`) patterns; `**/` makes the directory prefix optional so root-level files are matched
+- [x] `createHotspotLeaseManager(hotspots?, clock?)` factory with injectable clock for deterministic testing
+- [x] 30 unit tests covering pattern matching, check, acquire, release, TTL/expiry, glob patterns, and the lock-free guarantee for non-hotspot files; total test count 175
 
 ### M4 — Semantic conflicts (done)
 

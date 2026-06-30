@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M5)
+
+- M5 hotspot leases: `HotspotLeaseManager` (`src/hotspots/`) enforces advisory leases on declared hotspots — files or directories that are too costly to re-work after a collision (database migrations, shared API contracts, etc.); `register` declares a hotspot with glob patterns and a reason; `check` detects overlaps without acquiring a lock; `acquire` grants the lease when free, returns `'blocked'` with the holder's lease when taken, or `'not-required'` when the files touch no hotspot; `release` and `releaseByHolder` free leases; `listActive` / `pruneExpired` manage TTL-based expiry; `matchesPattern` supports exact, directory-prefix (`/`), single-segment (`*`), and cross-segment (`**`) glob patterns; the rest of the repo remains entirely lock-free
+- 30 new unit tests; total test count 175
+
 ### Added — 2026-06-30 (M4)
 
 - M4 semantic conflict detection: `SemanticConflictDetector` (`src/integration/semantic/`) runs `tsc --noEmit` in each in-flight branch's worktree via an injectable `ExecFn`; `parseTscOutput` converts raw tsc stdout into structured `TypeScriptError` objects; `detect` checks branches in parallel and calls `checkPairConflict` for every pair — flagging conflicts when branch A has type errors in files that branch B modified, when B has errors in A's files, or when both error in the same file; reports a `SemanticConflictReport` with per-branch results, `CrossBranchConflict` entries (with deduplicated `filesInvolved` and a human-readable description), and a top-level `hasConflicts` flag
