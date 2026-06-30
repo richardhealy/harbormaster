@@ -4,6 +4,11 @@ import type { CreateWorktreeOptions, WorktreeInfo } from './types'
 
 export type { WorktreeInfo, CreateWorktreeOptions } from './types'
 
+/**
+ * Manages per-task git worktrees off the current tip (spec section "M1 |
+ * Worktrees + queue"): one isolated working directory per dispatch so
+ * concurrent agents never share a checkout.
+ */
 export class WorktreeManager {
   constructor(
     private readonly git: SimpleGit,

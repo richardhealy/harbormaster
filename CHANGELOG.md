@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (docs: doc comments)
+
+- TSDoc comments added across the public surface of every module under `src/`: module/class-level overviews plus per-method docs covering intent and non-obvious behavior (confidence levels in `ImpactEstimator`, idempotency guards in `release/tags.ts`, gate short-circuiting, singleton lifetimes in `agent-iface/commands.ts`'s shared hotspot manager, etc.) rather than restatements of signatures
+- Closes the 17 previously-undocumented files (`config.ts`, `db/`, `gates/index.ts`, `integrations/github/*`, `integrations/linear/*`, `provenance/*`, `release/index.ts`, `release/semver.ts`, `releases/*`, `agent-iface/mcp/index.ts`) plus gap-fills on already-partially-documented modules
+- Build and the full 318-test suite verified green after the pass; this is the first Documentation-phase increment now that the spec (M0–M9) is fully implemented
+
 ### Added — 2026-06-30 (M9)
 
 - M9 agent interface: `src/agent-iface/commands.ts` exposes the full agent loop as one function per operation — schedule planning, hotspot leases, the gate pipeline, provenance recording/querying, and release create/list/manifest/notes — validated by zod schemas shared across both surfaces (`src/agent-iface/schemas.ts`)

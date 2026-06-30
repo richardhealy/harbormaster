@@ -4,6 +4,12 @@ import { getPool } from './db'
 import { createGitHubApp } from './integrations/github'
 import { registerWebhooks } from './integrations/github/webhooks'
 
+/**
+ * Control-plane service entrypoint. Boots config, the Postgres pool, and
+ * the GitHub App, logging a warning and continuing in degraded mode for
+ * any piece that isn't configured rather than failing startup — useful for
+ * local development without full credentials wired up.
+ */
 async function main() {
   const config = loadConfig()
 

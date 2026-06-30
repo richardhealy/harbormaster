@@ -1,5 +1,6 @@
 import type { SimpleGit } from 'simple-git'
 
+/** Returns whether `tag` already exists in the repo. Returns `false` (not a throw) if the tag lookup itself fails. */
 export async function tagExists(git: SimpleGit, tag: string): Promise<boolean> {
   try {
     const tags = await git.tags()

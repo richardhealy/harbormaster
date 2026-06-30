@@ -29,9 +29,16 @@ function rowToEvent(row: RawAuditRow): PersistedAuditEvent {
   }
 }
 
+/**
+ * Append-only audit log over the `audit_log` table — the spec's provenance
+ * requirement that every dispatch, gate decision, and merge traces to a
+ * ticket and agent. There is deliberately no update or delete method: the
+ * log is a record of what happened, not current state.
+ */
 export class ProvenanceRecorder {
   constructor(private readonly pool: ProvenancePool) {}
 
+  /** Inserts an audit event and returns its generated id. */
   async record(event: AuditEvent): Promise<string> {
     const result = await this.pool.query(
       `INSERT INTO audit_log (event_type, payload, ticket_id, agent_id, actor)
@@ -48,6 +55,7 @@ export class ProvenanceRecorder {
     return (result.rows[0] as { id: string }).id
   }
 
+  /** Runs a filtered, parameterised query over the log, newest first, capped at `params.limit` (default 100). */
   async query(params: ProvenanceQuery): Promise<PersistedAuditEvent[]> {
     const conditions: string[] = []
     const values: unknown[] = []
@@ -82,19 +90,23 @@ export class ProvenanceRecorder {
     return (result.rows as RawAuditRow[]).map(rowToEvent)
   }
 
+  /** Convenience wrapper over {@link query} filtered to a single ticket. */
   async queryByTicket(ticketId: string, limit = 100): Promise<PersistedAuditEvent[]> {
     return this.query({ ticketId, limit })
   }
 
+  /** Convenience wrapper over {@link query} filtered to a single dispatch (agent run). */
   async queryByDispatch(dispatchId: string): Promise<PersistedAuditEvent[]> {
     return this.query({ agentId: dispatchId, limit: 500 })
   }
 
+  /** Returns the full recorded history for a ticket, in chronological-descending order, for audit and debugging. */
   async getTrail(ticketId: string): Promise<PersistedAuditEvent[]> {
     return this.query({ ticketId, limit: 1000 })
   }
 }
 
+/** Factory mirroring the other modules' `create*` convention. */
 export function createProvenanceRecorder(pool: ProvenancePool): ProvenanceRecorder {
   return new ProvenanceRecorder(pool)
 }

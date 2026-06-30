@@ -11,6 +11,7 @@ export function featureBranchName({ type, ticketId, description }: BranchNameOpt
   return `${type}/${ticketId}/${slug}`
 }
 
+/** Creates a `release/<version>` branch off `base` (default `main`) and returns its {@link ReleaseContext}. */
 export async function createReleaseBranch(
   git: SimpleGit,
   version: string,

@@ -4,12 +4,14 @@ export interface SyncPool {
   query(text: string, values: unknown[]): Promise<unknown>
 }
 
+/** Mirrors Linear tickets into the local `tickets` table so the scheduler and gates can read them without a live API call per lookup. */
 export class TicketSyncer {
   constructor(
     private readonly pool: SyncPool,
     private readonly linear: LinearClient,
   ) {}
 
+  /** Upserts a single ticket, keyed by Linear's `id`. */
   async syncTicket(ticket: LinearTicket): Promise<void> {
     await this.pool.query(
       `INSERT INTO tickets (id, title, status, priority, labels, assignee_id, linear_data, updated_at)
@@ -34,6 +36,11 @@ export class TicketSyncer {
     )
   }
 
+  /**
+   * Fetches all of a team's issues and upserts each one independently — a single
+   * ticket failing doesn't abort the batch, it just increments `errors` and the
+   * sync continues.
+   */
   async syncTeamTickets(
     teamId: string,
     options: { limit?: number } = {},

@@ -52,6 +52,12 @@ function toRecord(row: DBRow): ReleaseRecord {
   }
 }
 
+/**
+ * Linear-planned releases: manifests, notes, and freeze windows (spec
+ * section "Release planning"). Distinct from `src/release/`, which ports
+ * the `release.sh` git lifecycle (branches, tags, hotfixes) — this module
+ * is the Linear-facing planning layer on top of it.
+ */
 export class ReleaseManager {
   private readonly pool: ReleasesPool
 
@@ -59,6 +65,7 @@ export class ReleaseManager {
     this.pool = pool
   }
 
+  /** Inserts a new release row in `'planning'` status. */
   async create(version: string, options: CreateReleaseOptions): Promise<ReleaseRecord> {
     const { branch, linearCycleId, freezeAt } = options
     const result = await this.pool.query<DBRow>(
@@ -77,6 +84,7 @@ export class ReleaseManager {
     return result.rows[0] ? toRecord(result.rows[0]) : null
   }
 
+  /** Updates a release's status. Setting `'released'` also stamps `released_at`. */
   async updateStatus(releaseId: string, status: ReleaseStatus): Promise<void> {
     const releasedClause = status === 'released' ? ', released_at = NOW()' : ''
     await this.pool.query(
@@ -85,6 +93,7 @@ export class ReleaseManager {
     )
   }
 
+  /** Sets the release's freeze cutoff and moves its status to `'frozen'`. */
   async setFreezeWindow(releaseId: string, freezeAt: Date): Promise<void> {
     await this.pool.query(
       `UPDATE releases SET freeze_at = $1, status = 'frozen', updated_at = NOW() WHERE id = $2`,
@@ -92,6 +101,7 @@ export class ReleaseManager {
     )
   }
 
+  /** Returns whether `at` (default: now) falls on or after the release's freeze cutoff. `false` if no freeze window is set. */
   async isInFreezeWindow(releaseId: string, at: Date = new Date()): Promise<boolean> {
     const result = await this.pool.query<{ freeze_at: Date | null }>(
       'SELECT freeze_at FROM releases WHERE id = $1',
@@ -102,6 +112,11 @@ export class ReleaseManager {
     return at >= new Date(freezeAt)
   }
 
+  /**
+   * Pulls the team's current Linear tickets (optionally narrowed by `labelFilter`),
+   * projects them into {@link ManifestTicket}s, computes status/priority breakdowns,
+   * and persists the resulting manifest onto the release row before returning it.
+   */
   async buildManifest(
     releaseId: string,
     linearClient: ReleaseLinearClient,
@@ -152,6 +167,12 @@ export class ReleaseManager {
     return manifest
   }
 
+  /**
+   * Renders a manifest into markdown release notes, bucketing tickets into
+   * Features / Fixes / Improvements / Other by label (matched against
+   * `feat*`/`bug*`/`fix*`/improvement-style labels, falling through to
+   * Other). Pure — does not touch the database.
+   */
   generateNotes(manifest: ReleaseManifest): string {
     const { version, generatedAt, tickets, summary } = manifest
 
@@ -196,6 +217,7 @@ export class ReleaseManager {
     return lines.join('\n').trimEnd() + '\n'
   }
 
+  /** Persists previously generated (or hand-edited) notes onto the release row. */
   async saveNotes(releaseId: string, notes: string): Promise<void> {
     await this.pool.query(
       `UPDATE releases SET notes = $1, updated_at = NOW() WHERE id = $2`,
@@ -203,6 +225,7 @@ export class ReleaseManager {
     )
   }
 
+  /** Lists releases newest-first, optionally filtered to a single status. */
   async listReleases(status?: ReleaseStatus): Promise<ReleaseRecord[]> {
     if (status !== undefined) {
       const result = await this.pool.query<DBRow>(
@@ -218,6 +241,7 @@ export class ReleaseManager {
   }
 }
 
+/** Factory mirroring the other modules' `create*` convention. */
 export function createReleaseManager(pool: ReleasesPool): ReleaseManager {
   return new ReleaseManager(pool)
 }

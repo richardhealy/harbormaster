@@ -194,6 +194,7 @@ export function createDefaultExec(): ExecFn {
   }
 }
 
+/** Factory: a {@link SemanticConflictDetector} wired to the real `child_process.exec`. */
 export function createSemanticConflictDetector(tsconfigPath?: string): SemanticConflictDetector {
   return new SemanticConflictDetector(createDefaultExec(), tsconfigPath)
 }

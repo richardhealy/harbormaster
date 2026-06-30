@@ -1,5 +1,6 @@
 import type { DomainPolicy, RiskLevel } from './types'
 
+/** Fallback policy applied when none of a change's domains is recognised in {@link POLICY_TABLE}. */
 export const DEFAULT_POLICY: DomainPolicy = {
   domain: 'default',
   riskLevel: 'medium',

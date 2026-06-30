@@ -44,6 +44,7 @@ import {
 // Scheduling
 // ---------------------------------------------------------------------------
 
+/** Estimates each ticket's impact surface and runs the scheduler over it, returning the wave-ordered dispatch plan. */
 export function planSchedule(input: unknown): DispatchPlan {
   const { tickets, mergeThreshold, sequenceThreshold } = planScheduleSchema.parse(input)
 
@@ -83,6 +84,7 @@ export function planSchedule(input: unknown): DispatchPlan {
 
 let sharedHotspotManager: HotspotLeaseManager | undefined
 
+/** Returns the process-wide {@link HotspotLeaseManager}, creating it on first call. */
 export function getHotspotManager(): HotspotLeaseManager {
   if (!sharedHotspotManager) sharedHotspotManager = createHotspotLeaseManager()
   return sharedHotspotManager
@@ -94,11 +96,13 @@ export function resetHotspotManager(manager?: HotspotLeaseManager): HotspotLease
   return sharedHotspotManager
 }
 
+/** Checks whether a set of files touches a registered hotspot, without acquiring a lease. */
 export function checkHotspot(input: unknown, manager = getHotspotManager()): HotspotCheckResult {
   const { files } = checkHotspotSchema.parse(input)
   return manager.check(files)
 }
 
+/** Declares (or replaces) a hotspot — a path pattern that requires an advisory lease before work begins. */
 export function registerHotspot(
   input: unknown,
   manager = getHotspotManager(),
@@ -108,16 +112,19 @@ export function registerHotspot(
   return { registered: true, hotspot }
 }
 
+/** Attempts to acquire an advisory lease for the hotspot matched by the request's files. */
 export function acquireLease(input: unknown, manager = getHotspotManager()): LeaseResult {
   const request: LeaseRequest = acquireLeaseSchema.parse(input)
   return manager.acquire(request)
 }
 
+/** Releases a single lease by id. */
 export function releaseLease(input: unknown, manager = getHotspotManager()): { released: boolean } {
   const { leaseId } = releaseLeaseSchema.parse(input)
   return { released: manager.release(leaseId) }
 }
 
+/** Releases every lease held by a given holder (e.g. on dispatch completion or failure). */
 export function releaseLeaseByHolder(
   input: unknown,
   manager = getHotspotManager(),
@@ -126,6 +133,7 @@ export function releaseLeaseByHolder(
   return { count: manager.releaseByHolder(holderId) }
 }
 
+/** Lists all currently active (non-expired) leases. */
 export function listActiveLeases(manager = getHotspotManager()): Lease[] {
   return manager.listActive()
 }
@@ -134,6 +142,12 @@ export function listActiveLeases(manager = getHotspotManager()): Lease[] {
 // Gates
 // ---------------------------------------------------------------------------
 
+/**
+ * Runs the scope/CI/QA/HITL gate pipeline for a change. The agent reports
+ * the CI status (and optional QA/HITL results) it already observed rather
+ * than the pipeline calling back out to live infrastructure — this keeps
+ * the command side-effect-free and easy to test from a CLI/MCP call.
+ */
 export async function runGatePipeline(input: unknown): Promise<GatePipelineResult> {
   const parsed = runGateSchema.parse(input)
 
@@ -162,6 +176,7 @@ function resolveProvenancePool(pool?: ProvenancePool): ProvenancePool {
   return pool ?? getPool(loadConfig().DATABASE_URL)
 }
 
+/** Records a single audit event. */
 export async function recordProvenance(
   input: unknown,
   pool?: ProvenancePool,
@@ -172,6 +187,7 @@ export async function recordProvenance(
   return { id }
 }
 
+/** Queries the audit log, filtered by ticket, agent, event type, and/or time range. */
 export async function queryProvenance(
   input: unknown,
   pool?: ProvenancePool,
@@ -196,6 +212,7 @@ function resolveReleasesPool(pool?: ReleasesPool): ReleasesPool {
   return pool ?? getPool(loadConfig().DATABASE_URL)
 }
 
+/** Creates a new release row in `'planning'` status. */
 export async function createRelease(input: unknown, pool?: ReleasesPool): Promise<ReleaseRecord> {
   const parsed = createReleaseSchema.parse(input)
   const manager = createReleaseManager(resolveReleasesPool(pool))
@@ -206,12 +223,18 @@ export async function createRelease(input: unknown, pool?: ReleasesPool): Promis
   })
 }
 
+/** Lists releases, optionally filtered to a single status. */
 export async function listReleases(input: unknown, pool?: ReleasesPool): Promise<ReleaseRecord[]> {
   const { status } = listReleasesSchema.parse(input)
   const manager = createReleaseManager(resolveReleasesPool(pool))
   return manager.listReleases(status)
 }
 
+/**
+ * Builds and persists a release manifest from the team's current Linear
+ * tickets. Falls back to a {@link LinearClient} built from `LINEAR_API_KEY`
+ * when no `linearClient` is injected — throws if that env var is unset.
+ */
 export async function buildReleaseManifest(
   input: unknown,
   deps: { pool?: ReleasesPool; linearClient?: ReleaseLinearClient } = {},

@@ -3,6 +3,11 @@ import 'dotenv/config'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createMcpServer } from './server'
 
+/**
+ * Process entrypoint for `npm run mcp` / the published `harbormaster-mcp` bin:
+ * wires {@link createMcpServer} to a stdio transport so an MCP-capable agent
+ * can drive the scheduler, gates, hotspots, provenance, and releases directly.
+ */
 async function main(): Promise<void> {
   const server = createMcpServer()
   const transport = new StdioServerTransport()

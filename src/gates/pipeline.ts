@@ -107,6 +107,7 @@ export class GatePipeline {
   }
 }
 
+/** Factory mirroring the other modules' `create*` convention. */
 export function createGatePipeline(options: GatePipelineOptions): GatePipeline {
   return new GatePipeline(options)
 }

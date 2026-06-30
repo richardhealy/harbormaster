@@ -9,6 +9,7 @@ export type { RerunOptions, RerunResult, RedispatchFn, RedispatchParams, RerunRe
 export { Rebaser } from './rebase'
 export { CIChecker } from './ci'
 
+/** Default cap on automatic re-dispatch attempts before a Rerunner gives up and reports `exhausted: true`. */
 export const DEFAULT_MAX_ATTEMPTS = 3
 
 /**

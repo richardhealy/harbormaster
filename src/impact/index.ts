@@ -5,6 +5,12 @@ import { DEFAULT_DOMAIN_MAP } from './types'
 export type { ImpactEstimateInput, ImpactSurface, DomainMap } from './types'
 export { DEFAULT_DOMAIN_MAP } from './types'
 
+/**
+ * Estimates a ticket's impact surface (files, directories, domains) and
+ * compares surfaces for overlap — the input the scheduler clusters and
+ * orders tickets by. See {@link estimate} for confidence levels and
+ * {@link computeOverlap} for how two surfaces are compared.
+ */
 export class ImpactEstimator {
   constructor(private readonly domainMap: DomainMap = DEFAULT_DOMAIN_MAP) {}
 

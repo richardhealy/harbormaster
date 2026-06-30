@@ -180,4 +180,26 @@
 
 ## Documentation
 
-*(Not yet started — will be seeded now that the spec is fully implemented)*
+| Deliverable | Status |
+|---|---|
+| a. Doc comments / inline documentation across the public surface | ☑ Done |
+| b. API reference documentation | ☐ Not started |
+| c. Architecture dossier (`docs/architecture.md`) | ☐ Not started |
+| d. Integration guide(s) (`docs/integration.md`) | ☐ Not started |
+| e. Usage/how-to guides, `docs/` index, final `README.md` pass | ☐ Not started |
+
+### a. Doc comments (done)
+
+- [x] TSDoc comments added across every module under `src/`: module/class-level
+  overviews plus per-method docs explaining intent and non-obvious behavior
+  (confidence levels, idempotency guards, short-circuiting, singleton
+  lifetimes), not restatements of signatures
+- [x] All 17 previously-undocumented files covered: `config.ts`, `index.ts`,
+  `db/index.ts`, `db/migrate.ts`, `gates/index.ts`, `agent-iface/mcp/index.ts`,
+  `integrations/github/*`, `integrations/linear/*`, `provenance/*`,
+  `release/index.ts`, `release/semver.ts`, `releases/*`
+  — plus targeted gap-filling on already-partially-documented modules
+  (`agent-iface/commands.ts`, `impact/`, `integration/worktrees/`,
+  `integration/semantic/`, `integration/rerun/`, `gates/pipeline.ts`,
+  `gates/policy.ts`, `gates/scope.ts`, `release/branch.ts`, `release/tags.ts`)
+- [x] Build and full test suite (318 tests) verified green after the pass

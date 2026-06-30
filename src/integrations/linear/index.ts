@@ -22,6 +22,11 @@ function normaliseTicket(raw: RawIssue): LinearTicket {
   return { ...raw, labels }
 }
 
+/**
+ * Thin client over Linear's GraphQL API — issue lookup, status updates, team
+ * listing, and workflow states. `fetchFn` is injectable so tests can stub
+ * the network call; it defaults to the global `fetch`.
+ */
 export class LinearClient {
   private readonly apiKey: string
   private readonly fetchFn: FetchFn
@@ -33,6 +38,7 @@ export class LinearClient {
     this.url = url
   }
 
+  /** Issues a single GraphQL request and unwraps `data`, throwing on a non-OK response or a GraphQL-level error. */
   private async gql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
     const res = await this.fetchFn(this.url, {
       method: 'POST',
@@ -58,6 +64,7 @@ export class LinearClient {
     return body.data
   }
 
+  /** Fetches a single issue by id or human-readable identifier (e.g. `ENG-123`). Returns `null` if not found. */
   async getTicket(identifier: string): Promise<LinearTicket | null> {
     const data = await this.gql<{ issue: RawIssue | null }>(
       `query GetIssue($identifier: String!) {
@@ -73,6 +80,7 @@ export class LinearClient {
     return data.issue ? normaliseTicket(data.issue) : null
   }
 
+  /** Moves a ticket to a different workflow state (see {@link getWorkflowStates} for valid `stateId` values). */
   async updateTicketStatus(ticketId: string, stateId: string): Promise<void> {
     await this.gql<{ issueUpdate: { success: boolean } }>(
       `mutation UpdateIssue($id: String!, $stateId: String!) {
@@ -82,6 +90,7 @@ export class LinearClient {
     )
   }
 
+  /** Lists a team's issues, newest first up to `options.limit` (default 50), optionally narrowed by `options.filter`. */
   async listTeamIssues(
     teamId: string,
     options: { limit?: number; filter?: LinearIssueFilter } = {},
@@ -105,6 +114,7 @@ export class LinearClient {
     return (data.team?.issues?.nodes ?? []).map(normaliseTicket)
   }
 
+  /** Returns every workflow state (e.g. Todo, In Progress, Done) configured for a team. */
   async getWorkflowStates(teamId: string): Promise<LinearWorkflowState[]> {
     const data = await this.gql<{ workflowStates: { nodes: LinearWorkflowState[] } }>(
       `query GetWorkflowStates($teamId: String!) {

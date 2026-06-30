@@ -1,5 +1,6 @@
 import type { ScopeCheckResult } from './types'
 
+/** The scope gate (spec section "The gate pipeline", stage 1): flags a change whose diff drifts too far from its predicted impact surface. */
 export class ScopeChecker {
   /**
    * Compares the actual diff files against the predicted impact surface.
