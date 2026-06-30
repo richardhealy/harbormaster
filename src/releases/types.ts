@@ -1,5 +1,7 @@
+/** A release's lifecycle stage. `frozen` means past its freeze window — see {@link ReleaseManager.isInFreezeWindow}. */
 export type ReleaseStatus = 'planning' | 'in_progress' | 'frozen' | 'released' | 'cancelled'
 
+/** A Linear ticket as it appears in a generated release manifest — a flattened, release-facing projection of {@link LinearTicket}. */
 export interface ManifestTicket {
   id: string
   identifier: string
@@ -12,6 +14,7 @@ export interface ManifestTicket {
   url?: string
 }
 
+/** The full set of tickets going into a release plus summary counts, as built by {@link ReleaseManager.buildManifest} and persisted to the release row. */
 export interface ReleaseManifest {
   releaseId: string
   version: string
@@ -25,6 +28,7 @@ export interface ReleaseManifest {
   }
 }
 
+/** A row from the `releases` table. */
 export interface ReleaseRecord {
   id: string
   version: string
@@ -39,6 +43,7 @@ export interface ReleaseRecord {
   updatedAt: Date
 }
 
+/** Options for {@link ReleaseManager.create}. */
 export interface CreateReleaseOptions {
   branch: string
   linearCycleId?: string

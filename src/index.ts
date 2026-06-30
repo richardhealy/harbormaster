@@ -1,3 +1,9 @@
+/**
+ * Control-plane entry point. Boots config, the Postgres pool, and (if
+ * credentials are present) the GitHub App and its webhook handlers. Each
+ * piece degrades independently — a missing database or GitHub App only logs
+ * a warning, so the process can still serve the parts that are configured.
+ */
 import 'dotenv/config'
 import { loadConfig } from './config'
 import { getPool } from './db'

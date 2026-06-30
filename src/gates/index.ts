@@ -1,3 +1,4 @@
+/** Public surface of the gate pipeline module — see `pipeline.ts` for the orchestration, `policy.ts` for per-domain risk policy, and `scope.ts` for diff-drift checking. */
 export type {
   RiskLevel,
   DomainPolicy,

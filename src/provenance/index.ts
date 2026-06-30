@@ -17,6 +17,7 @@ interface RawAuditRow {
   created_at: Date
 }
 
+/** Maps a raw `audit_log` row (snake_case, nullable foreign keys) to the camelCase {@link PersistedAuditEvent} shape. */
 function rowToEvent(row: RawAuditRow): PersistedAuditEvent {
   return {
     id: row.id,
@@ -29,9 +30,16 @@ function rowToEvent(row: RawAuditRow): PersistedAuditEvent {
   }
 }
 
+/**
+ * Append-only writer/reader for the audit log: every dispatch, gate
+ * decision, merge, and release ties back to a ticket and an actor through
+ * this table. This is what makes the spec's provenance requirement true —
+ * there is no update path, only `record` and `query`.
+ */
 export class ProvenanceRecorder {
   constructor(private readonly pool: ProvenancePool) {}
 
+  /** Inserts a new audit event and returns its generated id. */
   async record(event: AuditEvent): Promise<string> {
     const result = await this.pool.query(
       `INSERT INTO audit_log (event_type, payload, ticket_id, agent_id, actor)
@@ -48,6 +56,7 @@ export class ProvenanceRecorder {
     return (result.rows[0] as { id: string }).id
   }
 
+  /** Runs a parameterised query over the audit log, newest first. All filters are optional and AND-combined; defaults to the 100 most recent events. */
   async query(params: ProvenanceQuery): Promise<PersistedAuditEvent[]> {
     const conditions: string[] = []
     const values: unknown[] = []
@@ -82,19 +91,23 @@ export class ProvenanceRecorder {
     return (result.rows as RawAuditRow[]).map(rowToEvent)
   }
 
+  /** Convenience wrapper: all events for a ticket, newest first. */
   async queryByTicket(ticketId: string, limit = 100): Promise<PersistedAuditEvent[]> {
     return this.query({ ticketId, limit })
   }
 
+  /** Convenience wrapper: all events recorded under a dispatch id (audit events use `agentId` to carry the dispatch id). */
   async queryByDispatch(dispatchId: string): Promise<PersistedAuditEvent[]> {
     return this.query({ agentId: dispatchId, limit: 500 })
   }
 
+  /** Full provenance trail for a ticket — every dispatch, gate decision, and merge tied to it, in chronological-descending order. */
   async getTrail(ticketId: string): Promise<PersistedAuditEvent[]> {
     return this.query({ ticketId, limit: 1000 })
   }
 }
 
+/** Factory: wraps a pool (or pool-like object) in a {@link ProvenanceRecorder}. */
 export function createProvenanceRecorder(pool: ProvenancePool): ProvenanceRecorder {
   return new ProvenanceRecorder(pool)
 }

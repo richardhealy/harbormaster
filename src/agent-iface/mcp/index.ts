@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+/**
+ * Process entry point for the MCP server (`npm run mcp`). Connects
+ * {@link createMcpServer}'s server over stdio, the standard transport MCP
+ * clients (Claude Code, Cursor, etc.) expect for a locally-spawned server.
+ */
 import 'dotenv/config'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createMcpServer } from './server'

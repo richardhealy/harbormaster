@@ -1,5 +1,11 @@
 import type { App } from '@octokit/app'
 
+/**
+ * Wires logging/enforcement handlers onto the App's webhook events. Direct
+ * pushes to `main` are flagged (the GitHub branch-protection rule does the
+ * actual blocking; this is the audit-trail side) — all other agent
+ * integration is expected to land via the merge queue, not a push hook.
+ */
 export function registerWebhooks(app: App): void {
   // Enforce no direct pushes to main — agents must go through the queue
   app.webhooks.on('push', async ({ payload }) => {

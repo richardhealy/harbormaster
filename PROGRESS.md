@@ -180,4 +180,17 @@
 
 ## Documentation
 
-*(Not yet started — will be seeded now that the spec is fully implemented)*
+| # | Deliverable | Status |
+|---|-------------|--------|
+| a | Doc comments / inline documentation across the public surface | ☑ Done |
+| b | API reference documentation (CLI + MCP) | ☐ Not started |
+| c | Architecture dossier (`docs/architecture.md`) | ☐ Not started |
+| d | Integration guide(s) (`docs/integration.md`) | ☐ Not started |
+| e | Usage/how-to guides, `docs/` index, final `README.md` pass | ☐ Not started |
+
+### a — Doc comments (done)
+
+- [x] TSDoc-style `/** ... */` comments added to every public module, class, and function across `src/` (47 non-test files; 30 already had partial coverage from earlier milestones, 17 had none)
+- [x] Covered: `index.ts`, `config.ts`, `db/` (pool + migration runner), `integrations/github/` (App init + webhooks), `integrations/linear/` (client, sync, types), `provenance/` (recorder + event types), `releases/` (manager + types), `release/semver.ts`, barrel files (`release/index.ts`, `gates/index.ts`), `agent-iface/mcp/index.ts`
+- [x] Comments explain intent and non-obvious behavior (singleton pool, transactional migrations, append-only audit log, freeze-window semantics) rather than restating signatures
+- [x] `npm run typecheck`, `npm run build`, `npm run lint`, and `npm test` (318 tests) all verified green after the change

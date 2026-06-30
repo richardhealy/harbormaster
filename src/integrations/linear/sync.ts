@@ -4,12 +4,14 @@ export interface SyncPool {
   query(text: string, values: unknown[]): Promise<unknown>
 }
 
+/** Mirrors Linear issues into the local `tickets` table so the scheduler, gates, and provenance log can reference ticket state without calling Linear on every read. */
 export class TicketSyncer {
   constructor(
     private readonly pool: SyncPool,
     private readonly linear: LinearClient,
   ) {}
 
+  /** Upserts a single ticket. Re-running with the same ticket overwrites the row (status, labels, etc. always reflect the latest fetch). */
   async syncTicket(ticket: LinearTicket): Promise<void> {
     await this.pool.query(
       `INSERT INTO tickets (id, title, status, priority, labels, assignee_id, linear_data, updated_at)
@@ -34,6 +36,7 @@ export class TicketSyncer {
     )
   }
 
+  /** Fetches and syncs every issue for a team. A failure on one ticket is counted and skipped rather than aborting the whole batch. */
   async syncTeamTickets(
     teamId: string,
     options: { limit?: number } = {},
