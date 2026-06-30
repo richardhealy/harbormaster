@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**M4 Semantic Conflict Detection complete.** M0–M4 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**M6 Gate Pipeline complete.** M0–M6 done. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Project layout
 
@@ -24,11 +24,13 @@ Three layers, in priority order:
 src/
   impact/           # ImpactEstimator — file + domain overlap surfaces per ticket
   scheduler/        # Scheduler — conflict-aware dispatch plan (parallel/sequence/merge)
+  gates/            # GatePipeline — scope / CI / QA / HITL with per-domain policy
   integration/
     worktrees/      # WorktreeManager — per-task git worktrees off the current tip
     queue/          # GitHubMergeQueueAdapter — adapter over GitHub merge queue
     rerun/          # Rebaser, CIChecker, Rerunner — optimistic re-dispatch loop
     semantic/       # SemanticConflictDetector — cross-branch tsc typecheck + conflict analysis
+  hotspots/         # HotspotLeaseManager — advisory leases for declared un-mergeable paths
   release/          # ported release.sh lifecycle (semver, branches, tags, hotfix, sync)
   db/               # Postgres connection, migration runner, TypeScript schema types
     migrations/     # SQL migration files (applied in order)
@@ -38,6 +40,8 @@ src/
   config.ts         # Zod-validated config from environment
   index.ts          # Control-plane entry point
 tests/
+  gates/            # Unit tests for gate pipeline (37 tests)
+  hotspots/         # Unit tests for hotspot leases (30 tests)
   impact/           # Unit tests for impact estimator (19 tests)
   scheduler/        # Unit tests for conflict-aware scheduler (15 tests)
   integration/      # Unit tests for worktrees (13), queue (15), rerun (27), semantic (21)
@@ -183,6 +187,57 @@ Decision rules (by Jaccard overlap score):
 - `0 < overlap < mergeThreshold` → **sequence**: run one ticket after the other
 - `overlap == 0` → **parallel**: safe to run at the same time
 
+## Gate pipeline (`src/gates/`)
+
+Every change passes through a configurable gate pipeline before merge. Stages run in order; the pipeline stops at the first failure.
+
+| Stage | When it runs | What it checks |
+|-------|-------------|----------------|
+| **scope** | Always | Drift ratio: unexpected files / expected files. Passes if no files were predicted (low confidence). |
+| **ci** | Always | Injectable `CICheckFn` — must return `'success'`. |
+| **qa** | When `policy.requiresQA` | Injectable `QACheckFn` — eval score, automated checks, or sign-off. |
+| **hitl** | When `policy.requiresHITL` | Injectable `ApprovalFn` — human reviewer must approve. |
+
+### Domain risk levels
+
+`resolvePolicy(domains)` picks the **strictest** policy across all input domains:
+
+| Risk | Domains | Scope threshold | QA | HITL |
+|------|---------|----------------|-----|------|
+| **low** | `docs`, `readme` | 200% | — | — |
+| **medium** (default) | `release`, `scheduler`, `integration/*`, `agent-iface`, `integrations/*` | 50% | ✓ | — |
+| **high** | `db`, `hotspots`, `provenance` | 20% | ✓ | ✓ |
+
+```typescript
+import { createGatePipeline, resolvePolicy } from './src/gates'
+
+const pipeline = createGatePipeline({
+  checkCI: async branch => {
+    // query GitHub check runs for this branch ref
+    return 'success'
+  },
+  runQA: async (dispatchId, branch) => {
+    // run automated eval or check sign-off
+    return { passed: true }
+  },
+  approve: async (dispatchId, ticketId) => {
+    // block until a human approves via Slack / GitHub review
+    return true
+  },
+})
+
+const result = await pipeline.run({
+  dispatchId: 'disp-42',
+  ticketId: 'ENG-42',
+  branch: 'feat/ENG-42/add-feature',
+  domains: ['release'],           // resolves to medium-risk policy
+  expectedFiles: ['src/release/branch.ts'],
+  actualFiles: ['src/release/branch.ts'],
+})
+// result.passed → true
+// result.gates  → [{stage:'scope',status:'pass'}, {stage:'ci',status:'pass'}, {stage:'qa',status:'pass'}]
+```
+
 ## Next milestone
 
-**M4 — Semantic conflicts:** cross-branch typecheck/build detection.
+**M7 — Linear + provenance:** ticket sync and immutable audit log.

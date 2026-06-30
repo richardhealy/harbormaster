@@ -4,6 +4,15 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-06-30 (M6)
+
+- M6 gate pipeline: `GatePipeline` (`src/gates/`) runs changes through four ordered stages — scope check, CI, QA, and HITL approval — with per-domain policy controlling which stages are required and how strict they are
+- `ScopeChecker` computes a drift ratio (unexpected files / expected files) against a per-policy threshold; low-confidence estimates (empty expected-file list) bypass the check automatically
+- `resolvePolicy(domains)` selects the strictest matching `DomainPolicy` from a built-in table — low risk (`docs`, `readme`): scope + CI only; medium risk (`release`, `integration/*`, `scheduler`, etc.): + QA; high risk (`db`, `hotspots`, `provenance`): + mandatory HITL with a tighter 20 % scope threshold; unknown domains fall back to the default medium-risk policy
+- Stages without a configured runner (`runQA`, `approve`) are recorded as `'skipped'` rather than failing, so the pipeline can run in environments where those functions aren't wired up yet
+- All injectable function types (`CICheckFn`, `QACheckFn`, `ApprovalFn`) keep the pipeline fully testable without real infrastructure
+- 37 new unit tests covering policy resolution, scope drift boundary conditions, and every pipeline path (low/medium/high risk, scope fail, CI fail, QA fail, HITL reject, skipped stages); total test count 212
+
 ### Added — 2026-06-30 (M5)
 
 - M5 hotspot leases: `HotspotLeaseManager` (`src/hotspots/`) enforces advisory leases on declared hotspots — files or directories that are too costly to re-work after a collision (database migrations, shared API contracts, etc.); `register` declares a hotspot with glob patterns and a reason; `check` detects overlaps without acquiring a lock; `acquire` grants the lease when free, returns `'blocked'` with the holder's lease when taken, or `'not-required'` when the files touch no hotspot; `release` and `releaseByHolder` free leases; `listActive` / `pruneExpired` manage TTL-based expiry; `matchesPattern` supports exact, directory-prefix (`/`), single-segment (`*`), and cross-segment (`**`) glob patterns; the rest of the repo remains entirely lock-free

@@ -10,7 +10,7 @@
 | M3 | Impact + scheduler | ☑ Done |
 | M4 | Semantic conflicts | ☑ Done |
 | M5 | Hotspot leases | ☑ Done |
-| M6 | Gates | ☐ Not started |
+| M6 | Gates | ☑ Done |
 | M7 | Linear + provenance | ☐ Not started |
 | M8 | Releases | ☐ Not started |
 | M9 | Agent interface | ☐ Not started |
@@ -73,6 +73,15 @@
   - Decision labels: `parallel` (same wave, no overlap), `sequence` (later wave, some overlap), `merge` (one agent job)
 - [x] 34 unit tests: 19 for impact, 15 for scheduler (all passing)
 - [x] Total test count: 124
+
+### M6 — Gates (done)
+
+- [x] `src/gates/types.ts` — `RiskLevel`, `DomainPolicy`, `GateStage`, `GateStatus`, `GateResult`, `GatePipelineInput`, `GatePipelineResult`, `ScopeCheckResult`, `CICheckFn`, `QACheckFn`, `ApprovalFn`
+- [x] `src/gates/policy.ts` — `POLICY_TABLE` with low/medium/high risk entries for all known domains; `resolvePolicy(domains)` picks the strictest policy matching any of the input domains; falls back to `DEFAULT_POLICY` (medium risk) when no domain is recognised
+- [x] `src/gates/scope.ts` — `ScopeChecker.check(expectedFiles, actualFiles, threshold)` computes drift ratio (unexpectedFiles / expectedFiles); passes when expectedFiles is empty (confidence too low) or drift ≤ threshold; failure reason includes file sample and ellipsis for long lists
+- [x] `src/gates/pipeline.ts` — `GatePipeline.run(input)` runs stages in order: scope → CI → QA (if policy.requiresQA) → HITL (if policy.requiresHITL); short-circuits on first failure; stages without a configured runner are recorded as `'skipped'`; `createGatePipeline(options)` factory with injectable `checkCI`, `runQA`, `approve`
+- [x] `src/gates/index.ts` — public re-exports
+- [x] 37 unit tests covering policy resolution, scope drift logic, and all pipeline paths (all passing); total test count 212
 
 ### M5 — Hotspot leases (done)
 
