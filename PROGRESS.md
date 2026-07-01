@@ -14,6 +14,14 @@
 | M7 | Linear + provenance | ☑ Done |
 | M8 | Releases | ☑ Done |
 | M9 | Agent interface | ☑ Done |
+| QC | Best-in-class quality checklist — real (non-mocked) proof for each item | ◐ In progress (1 of 8 items proven end-to-end; see note below) |
+
+**Note on QC status:** all 318→320 tests pass, but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests run entirely against mocked git/HTTP/DB/subprocess clients — none exercise a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. `tests/e2e/headline-scheduling.e2e.test.ts` closes this for item 1 (the headline test) by running `ImpactEstimator` + `Scheduler` + `WorktreeManager` unmodified against a real throwaway git repository. Outstanding, for future increments:
+  - Item 2 (optimistic re-run): `Rebaser`/`Rerunner` are only exercised against mocked `SimpleGit`; needs a real rebase conflict (two branches editing the same lines) driven through a real repo.
+  - Item 3 (semantic conflicts): `SemanticConflictDetector` only sees a fake `ExecFn` returning hand-written `tsc` output; needs a real `tsc --noEmit` run across two branches with an actual signature-breaking change.
+  - Items 5 and 7 (release lifecycle, provenance/manifest): real-git and real-Linear-shaped fixtures instead of mocked `SimpleGit`/`SyncPool`.
+  - Item 8 (MCP): the test suite calls registered tool handlers directly rather than round-tripping through the MCP stdio/JSON-RPC transport.
+  - Items 4 and 6 (hotspot leases, gate policy) are inherently in-memory logic and are already genuinely proven by their existing unit tests — no gap there.
 
 ### M0 — Scaffold (done)
 
@@ -177,6 +185,28 @@
 - [x] `src/agent-iface/mcp/server.ts` + `mcp/index.ts` — MCP server (`@modelcontextprotocol/sdk`) over stdio; one `registerTool` per command using the shared zod shapes as the input schema; `createMcpServer()` exported for testing without a transport
 - [x] `package.json` — `bin.harbormaster` (compiled CLI), `npm run cli` / `npm run mcp` (tsx, dev mode)
 - [x] 26 new unit tests (17 commands + 6 CLI dispatch + 3 MCP tool registry); total test count 318
+
+### QC — Headline test proven against a real sample repo (done)
+
+- [x] `tests/e2e/headline-scheduling.e2e.test.ts` — a real, throwaway git repository
+  (created with `simple-git` under a temp directory, not mocked) stands in for the
+  spec's "sample repo". `ImpactEstimator` and `Scheduler` run unmodified against it:
+  - Two tickets sharing a file (`src/shared/utils.ts`) are scheduled into different
+    waves (`sequence`), never the same wave.
+  - Two tickets touching the identical file are clustered into one `merge` group,
+    i.e. dispatched as a single agent job rather than two.
+  - A ticket touching an unrelated file lands in the same wave as a non-overlapping
+    ticket, proving the scheduler doesn't over-serialize independent work.
+  - A second test walks the resulting `DispatchPlan` wave-by-wave and creates a real
+    `git worktree` per group via `WorktreeManager` against the sample repo (waves
+    run concurrently within themselves, sequentially across themselves), then
+    asserts the two overlapping tickets' worktrees were never created in the same
+    wave — the headline guarantee, demonstrated with real git operations rather
+    than asserting on in-memory scheduler output alone.
+- [x] 2 new tests; total test count 320
+- [x] Identified (but did not yet close) the same real-git/real-subprocess gap in
+  the optimistic re-run, semantic-conflict, release-lifecycle, provenance, and MCP
+  transport tests — see the QC note above the milestone table for what's left.
 
 ## Documentation
 

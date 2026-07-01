@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented and the full test suite (318 tests) passes. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented and the full test suite (320 tests) passes. Most tests exercise the logic against mocked git/HTTP/DB clients; the headline scheduling guarantee (item 1 of the spec's quality checklist) is additionally proven against a real, throwaway git repository in `tests/e2e/headline-scheduling.e2e.test.ts`. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker and the remaining real-git/real-subprocess proof gaps.
 
 ## Documentation
 

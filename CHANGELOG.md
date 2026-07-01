@@ -4,6 +4,24 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (test: prove the headline scheduling test on a real sample repo)
+
+- `tests/e2e/headline-scheduling.e2e.test.ts`: an audit against the spec's own
+  "Best-in-class quality checklist" found that all 318 existing tests run
+  against mocked git/HTTP/DB/subprocess clients, so none actually proved the
+  checklist's own wording (e.g. "proven on a sample repo"). This closes that
+  gap for the headline item: `ImpactEstimator` and `Scheduler` now run
+  unmodified against a real throwaway git repository, and a second test walks
+  the resulting dispatch plan wave-by-wave, creating a real `git worktree` per
+  group via `WorktreeManager`, to demonstrate that tickets whose impact
+  surfaces overlap are never dispatched in the same wave (sequenced, or merged
+  into one job), while independent tickets share a wave freely
+- 2 new tests; total test count 320
+- `PROGRESS.md`: added a QC (quality checklist) tracking row and noted the
+  remaining real-git/real-subprocess gaps in the optimistic re-run, semantic
+  conflict, release lifecycle, provenance, and MCP transport test suites for
+  future increments
+
 ### Added — 2026-07-01 (docs: how-to guides, docs index, README pass)
 
 - `docs/how-to.md`: task-oriented recipes for every module, each verified
