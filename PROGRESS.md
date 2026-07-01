@@ -16,7 +16,7 @@
 | M9 | Agent interface | ☑ Done |
 | QC | Best-in-class quality checklist — real (non-mocked) proof for each item | ◐ In progress (1 of 8 items proven end-to-end; see note below) |
 
-**Note on QC status:** all 318→320 tests pass, but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests run entirely against mocked git/HTTP/DB/subprocess clients — none exercise a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. `tests/e2e/headline-scheduling.e2e.test.ts` closes this for item 1 (the headline test) by running `ImpactEstimator` + `Scheduler` + `WorktreeManager` unmodified against a real throwaway git repository. Outstanding, for future increments:
+**Note on QC status:** all 318→320 tests passed at the time of this review (333 after merging in the webhook-receiver/branch-protection increment alongside it), but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests run entirely against mocked git/HTTP/DB/subprocess clients — none exercise a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. `tests/e2e/headline-scheduling.e2e.test.ts` closes this for item 1 (the headline test) by running `ImpactEstimator` + `Scheduler` + `WorktreeManager` unmodified against a real throwaway git repository. Outstanding, for future increments:
   - Item 2 (optimistic re-run): `Rebaser`/`Rerunner` are only exercised against mocked `SimpleGit`; needs a real rebase conflict (two branches editing the same lines) driven through a real repo.
   - Item 3 (semantic conflicts): `SemanticConflictDetector` only sees a fake `ExecFn` returning hand-written `tsc` output; needs a real `tsc --noEmit` run across two branches with an actual signature-breaking change.
   - Items 5 and 7 (release lifecycle, provenance/manifest): real-git and real-Linear-shaped fixtures instead of mocked `SimpleGit`/`SyncPool`.
@@ -29,8 +29,12 @@
 - [x] Directory layout matching spec: release/, db/, integrations/github/, integrations/linear/
 - [x] Postgres schema + migration runner (`src/db/migrations/001_initial.sql`, `src/db/migrate.ts`)
   - audit_log, tickets, dispatches, gate_decisions, releases tables
-- [x] GitHub App skeleton (`src/integrations/github/`)
-  - App init via `@octokit/app`, webhook handlers (push, pull_request, check_suite)
+- [x] GitHub App (`src/integrations/github/`)
+  - App init via `@octokit/app`, webhook handlers (push, pull_request, check_suite,
+    installation, installation_repositories)
+  - HTTP webhook receiver actually mounted and listening (`server.ts`) — see
+    the dedicated entry below
+  - Real branch-protection enforcement, not just a log line — see below
 - [x] Linear client stub (`src/integrations/linear/`)
 - [x] Release lifecycle port from `release.sh` (`src/release/`)
   - [x] Semver bump from latest tag (`semver.ts`)
@@ -43,6 +47,40 @@
 - [x] CI configuration (`.github/workflows/ci.yml`)
 - [x] ESLint 9 flat config
 - [x] `PROGRESS.md`, `README.md`, `CHANGELOG.md`
+
+### M0 follow-up — GitHub webhook receiver + real branch protection (done)
+
+Closed a gap flagged during the documentation phase: `docs/integration.md`
+had honestly disclosed that `src/index.ts` initialized the GitHub App in
+memory but never started an HTTP listener, and that "enforces no direct
+main pushes and required checks" (spec.md line 73) was not actually
+implemented — the push handler only logged. This increment makes both real:
+
+- [x] `src/integrations/github/server.ts` — `startWebhookServer(app, port, path?)`
+  mounts `@octokit/webhooks`'s `createNodeMiddleware` on a real
+  `http.createServer`, so GitHub's webhook deliveries reach the process
+  instead of being registered on handlers nothing ever invokes
+- [x] `src/integrations/github/branch-protection.ts` — `enforceBranchProtection`
+  calls `PUT /repos/{owner}/{repo}/branches/{branch}/protection` (required
+  status checks, required PR review, `enforce_admins`, no push restrictions
+  bypass) — this is what actually backs "no direct main pushes and required
+  checks"; a webhook handler can only observe a push after the fact, so
+  enforcement has to be a standing GitHub-side repo setting
+- [x] `src/integrations/github/webhooks.ts` — `registerWebhooks` now also
+  listens for `installation.created` / `installation_repositories.added`
+  and calls `enforceBranchProtection` automatically for every repo the App
+  gains access to, using the installation-scoped Octokit `@octokit/app`
+  already injects into the event; protection failures (e.g. missing
+  Administration permission) log a warning instead of crashing the process
+- [x] `src/index.ts` wires it end to end: `config.PORT` now actually has a
+  listener on it, and `GITHUB_PROTECTED_BRANCH` / `GITHUB_REQUIRED_STATUS_CHECKS`
+  (new config, `src/config.ts`) drive the enforced policy
+- [x] `docs/integration.md` updated to describe the real behaviour instead
+  of the deferral
+- [x] 13 new unit tests (4 branch-protection, 7 webhooks, 2 server —
+  including a real HTTP round trip against a mocked webhook middleware);
+  total test count 331
+- [x] `npm run typecheck`, `npm run lint`, and `npm run build` verified green
 
 ### M2 — Optimistic re-run (done)
 

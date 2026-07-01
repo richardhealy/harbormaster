@@ -3,6 +3,7 @@ import { loadConfig } from './config'
 import { getPool } from './db'
 import { createGitHubApp } from './integrations/github'
 import { registerWebhooks } from './integrations/github/webhooks'
+import { startWebhookServer } from './integrations/github/server'
 
 /**
  * Control-plane entry point. Loads config, verifies database connectivity,
@@ -27,8 +28,17 @@ async function main() {
 
   const githubApp = createGitHubApp()
   if (githubApp) {
-    registerWebhooks(githubApp)
-    console.log('[github] app initialized')
+    const requiredStatusChecks = (config.GITHUB_REQUIRED_STATUS_CHECKS ?? '')
+      .split(',')
+      .map((check) => check.trim())
+      .filter(Boolean)
+
+    registerWebhooks(githubApp, {
+      protectedBranch: config.GITHUB_PROTECTED_BRANCH,
+      requiredStatusChecks,
+    })
+    startWebhookServer(githubApp, config.PORT)
+    console.log(`[github] app initialized, webhook receiver listening on :${config.PORT}`)
   } else {
     console.warn('[github] credentials not configured — app disabled')
   }

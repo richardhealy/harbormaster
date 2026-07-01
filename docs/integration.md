@@ -165,48 +165,42 @@ const gate = await runGatePipeline({
 2. Permissions: **Contents** (read/write, for the queue adapter's PR/branch
    operations), **Pull requests** (read/write), **Checks** (read, for
    `CIChecker`).
-3. Subscribe to events: `push`, `pull_request`, `check_suite` (matches the
-   handlers in `src/integrations/github/webhooks.ts`; add `merge_group` if
-   you also want queue-entry/exit events).
-4. Set the webhook URL to wherever you mount the middleware below, generate
-   a webhook secret, generate a private key, and install the app on the
-   target repo.
-5. Set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (the full PEM, newlines
+3. Permissions also need **Administration** (read/write), so the App can
+   configure branch protection on repos it's installed on.
+4. Subscribe to events: `push`, `pull_request`, `check_suite`, `installation`,
+   `installation_repositories` (matches the handlers in
+   `src/integrations/github/webhooks.ts`; add `merge_group` if you also
+   want queue-entry/exit events).
+5. Set the webhook URL to `https://<host>:<PORT>/webhooks/github` (where
+   `src/index.ts` mounts the receiver, see below), generate a webhook
+   secret, generate a private key, and install the app on the target repo.
+6. Set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (the full PEM, newlines
    escaped as `\n` if passed via a single-line env var), and
-   `GITHUB_WEBHOOK_SECRET`.
+   `GITHUB_WEBHOOK_SECRET`. Optionally set `GITHUB_PROTECTED_BRANCH`
+   (defaults to `main`) and `GITHUB_REQUIRED_STATUS_CHECKS` (a comma-separated
+   list of required check contexts, e.g. `ci,lint`; defaults to none).
 
-### Wire the webhook receiver
+### The webhook receiver and branch protection enforcement
 
-`createGitHubApp()` builds the `@octokit/app` client and
-`registerWebhooks(app)` attaches the handlers, but **the control plane does
-not yet start an HTTP listener** — `src/index.ts` initializes the app in
-memory only. To actually receive GitHub's webhook deliveries, mount
-`@octokit/app`'s Node middleware behind an HTTP server on `PORT`:
+`src/index.ts` wires the whole path when GitHub credentials are configured:
+`createGitHubApp()` builds the `@octokit/app` client,
+`registerWebhooks(app, options)` attaches the handlers, and
+`startWebhookServer(app, config.PORT)` (`src/integrations/github/server.ts`)
+mounts `@octokit/webhooks`'s Node middleware on `/webhooks/github` behind a
+real HTTP server listening on `PORT` — GitHub's deliveries now actually
+reach the process instead of being registered on a listener nothing feeds.
 
-```typescript
-import { createServer } from 'http'
-import { createNodeMiddleware } from '@octokit/app'
-import { createGitHubApp } from './src/integrations/github'
-import { registerWebhooks } from './src/integrations/github/webhooks'
-import { loadConfig } from './src/config'
-
-const app = createGitHubApp()
-if (app) {
-  registerWebhooks(app)
-  const { PORT } = loadConfig()
-  createServer(createNodeMiddleware(app)).listen(PORT)
-}
-```
-
-Point the App's webhook URL at `https://<host>:<PORT>/api/github/webhooks`
-(the default path `createNodeMiddleware` mounts on).
-
-Today the handlers log (a direct push to `main`, a merged PR, a completed
-check suite) rather than acting — enforcing "no direct main pushes" and
-required checks in the current implementation is done via GitHub branch
-protection rules on the repo, not by this process rejecting anything. Wire
-the `push`-to-`main` handler into `recordProvenance` (§5) if you want it on
-the audit trail as well as in the logs.
+Enforcing "no direct main pushes and required checks" happens once,
+automatically, whenever the App gains access to a repo: the
+`installation.created` and `installation_repositories.added` handlers call
+`enforceBranchProtection` (`src/integrations/github/branch-protection.ts`),
+which sets branch protection on `GITHUB_PROTECTED_BRANCH` via the GitHub
+API — required status checks from `GITHUB_REQUIRED_STATUS_CHECKS`, required
+PR review, and `enforce_admins`. GitHub itself then refuses direct pushes
+and merges without the named checks; the `push` handler's log line is an
+observability signal for a push that already happened, not the enforcement
+mechanism. If the App lacks the Administration permission the protection
+call fails and is logged as a warning rather than crashing the process.
 
 ### The merge queue adapter
 

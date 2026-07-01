@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented and the full test suite (320 tests) passes. Most tests exercise the logic against mocked git/HTTP/DB clients; the headline scheduling guarantee (item 1 of the spec's quality checklist) is additionally proven against a real, throwaway git repository in `tests/e2e/headline-scheduling.e2e.test.ts`. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker and the remaining real-git/real-subprocess proof gaps.
+**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented, the GitHub App mounts a real webhook receiver and enforces branch protection, and the full test suite (333 tests) passes. Most tests exercise the logic against mocked git/HTTP/DB clients; the headline scheduling guarantee (item 1 of the spec's quality checklist) is additionally proven against a real, throwaway git repository in `tests/e2e/headline-scheduling.e2e.test.ts`. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker and the remaining real-git/real-subprocess proof gaps.
 
 ## Documentation
 
@@ -106,7 +106,7 @@ await runMigrations(getPool(), './src/db/migrations')
 
 ### GitHub App
 
-Set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_WEBHOOK_SECRET` in your `.env`. Without these, the GitHub integration is disabled and the service still starts.
+Set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_WEBHOOK_SECRET` in your `.env`. Without these, the GitHub integration is disabled and the service still starts. When configured, `src/index.ts` starts a real HTTP webhook receiver on `PORT` and automatically configures branch protection (required status checks, required PR review) on `GITHUB_PROTECTED_BRANCH` — see [docs/integration.md](./docs/integration.md#3-github-integration) for the App permissions and setup steps.
 
 ## Release lifecycle
 

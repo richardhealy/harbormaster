@@ -4,6 +4,29 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (feat: GitHub webhook receiver + branch protection enforcement)
+
+- `src/integrations/github/server.ts`: `startWebhookServer` mounts a real
+  HTTP receiver (`@octokit/webhooks`'s `createNodeMiddleware`) on `PORT`, so
+  GitHub webhook deliveries actually reach the process — previously
+  `registerWebhooks` attached handlers to an App object nothing ever fed
+  events into
+- `src/integrations/github/branch-protection.ts`: `enforceBranchProtection`
+  calls the GitHub branch protection API (required status checks, required
+  PR review, `enforce_admins`) — this is what backs spec.md's "no direct
+  main pushes and required checks" guarantee; a webhook handler can only
+  observe a push after the fact, so enforcement has to be a standing
+  GitHub-side setting
+- `registerWebhooks` now listens for `installation.created` /
+  `installation_repositories.added` and calls `enforceBranchProtection`
+  automatically for every repo the App gains access to
+- New config: `GITHUB_PROTECTED_BRANCH` (default `main`),
+  `GITHUB_REQUIRED_STATUS_CHECKS` (comma-separated)
+- 13 new unit tests (branch-protection, webhooks, and a real HTTP round
+  trip for the server); total test count 331
+- `docs/integration.md` updated to describe the real behaviour in place of
+  the previously documented deferral
+
 ### Added — 2026-07-01 (test: prove the headline scheduling test on a real sample repo)
 
 - `tests/e2e/headline-scheduling.e2e.test.ts`: an audit against the spec's own
@@ -16,7 +39,8 @@ All notable changes to this project are documented here.
   group via `WorktreeManager`, to demonstrate that tickets whose impact
   surfaces overlap are never dispatched in the same wave (sequenced, or merged
   into one job), while independent tickets share a wave freely
-- 2 new tests; total test count 320
+- 2 new tests; total test count 320 (333 combined with the webhook/branch-
+  protection increment above)
 - `PROGRESS.md`: added a QC (quality checklist) tracking row and noted the
   remaining real-git/real-subprocess gaps in the optimistic re-run, semantic
   conflict, release lifecycle, provenance, and MCP transport test suites for
