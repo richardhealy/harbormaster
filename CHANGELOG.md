@@ -4,6 +4,19 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (docs: integration guide)
+
+- `docs/integration.md`: how to stand the control plane up (Postgres,
+  migrations, config), drive it as an agent (CLI, MCP with a client config
+  example, or in-process), wire up the GitHub App (including a
+  `createNodeMiddleware` snippet for the webhook receiver `src/index.ts`
+  doesn't yet mount) and the merge queue adapter, sync Linear tickets and
+  build release manifests, and a worked end-to-end flow chaining
+  `schedule plan` → merge queue → `gate run` → `provenance record` →
+  `release create`/`release manifest`
+- `docs/images/cli-schedule-plan.png`: terminal screenshot of a live
+  `schedule plan` run, embedded in the CLI section of the integration guide
+
 ### Added — 2026-07-01 (docs: architecture dossier)
 
 - `docs/architecture.md`: component map, a data/control-flow diagram from

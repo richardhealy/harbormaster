@@ -185,7 +185,7 @@
 | a | Doc comments (TSDoc) across the public surface | ☑ Done |
 | b | API reference documentation (CLI/MCP command surface) | ☑ Done |
 | c | Architecture dossier (`docs/architecture.md`) | ☑ Done |
-| d | Integration guide(s) (`docs/integration.md`) | ☐ Not started |
+| d | Integration guide(s) (`docs/integration.md`) | ☑ Done |
 | e | Usage/how-to guides, `docs/` index, final README pass | ☐ Not started |
 
 ### a — Doc comments (done)
@@ -226,6 +226,34 @@
   couldn't structurally satisfy. Narrowed it to a single-shape `query()`
   interface matching the `ProvenancePool`/`SyncPool` pattern used elsewhere
   in the codebase. `npm run typecheck` (part of CI) is green again.
+
+### d — Integration guide (done)
+
+- [x] `docs/integration.md` — how to stand harbormaster up and call it from
+  another system, in four sections plus a worked flow:
+  - Running the control plane: Postgres setup, the config table (env vars
+    and what happens when each is unset), applying migrations, booting
+  - Driving it as an agent: CLI (spawn-per-call) vs. MCP (long-running
+    subprocess, with a Claude Code/Cursor-style `mcpServers` config
+    snippet) vs. calling `agent-iface/commands.ts` directly in-process,
+    including the MCP-only in-memory hotspot manager caveat
+  - GitHub integration: creating the App (permissions, events, secrets),
+    an accurate note that `src/index.ts` initializes the App but does not
+    yet mount an HTTP webhook receiver, a concrete `createNodeMiddleware`
+    snippet to wire one up, and using `GitHubMergeQueueAdapter` against a
+    real Octokit installation client
+  - Linear integration: getting an API key, `TicketSyncer.syncTeamTickets`
+    to populate the `tickets` table, and `ReleaseManager.buildManifest` /
+    `generateNotes` for release notes
+  - An end-to-end worked flow chaining `schedule plan` → merge queue →
+    `gate run` → `provenance record` → `release create`/`release manifest`
+    with corrected CLI command names (`schedule plan`, not `schedule_plan`)
+    and valid payload fields cross-checked against `src/agent-iface/schemas.ts`
+- [x] `docs/images/cli-schedule-plan.png` — a real terminal screenshot of
+  `schedule plan` producing a two-ticket dispatch plan, captured with
+  `freeze` and embedded in the CLI section
+- [x] `npm run typecheck`, `npm run lint`, `npm run build`, and the full
+  test suite (318 tests) verified green (docs-only change; no source touched)
 
 ### c — Architecture dossier (done)
 
