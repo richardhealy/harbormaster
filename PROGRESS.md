@@ -14,14 +14,14 @@
 | M7 | Linear + provenance | ☑ Done |
 | M8 | Releases | ☑ Done |
 | M9 | Agent interface | ☑ Done |
-| QC | Best-in-class quality checklist — real (non-mocked) proof for each item | ◐ In progress (2 of 8 items proven end-to-end; see note below) |
+| QC | Best-in-class quality checklist — real (non-mocked) proof for each item | ◐ In progress (3 of 8 items proven end-to-end; see note below) |
 
-**Note on QC status:** 334 tests pass, but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests originally ran entirely against mocked git/HTTP/DB/subprocess clients — none exercised a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. Closed so far:
+**Note on QC status:** 335 tests pass, but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests originally ran entirely against mocked git/HTTP/DB/subprocess clients — none exercised a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. Closed so far:
   - Item 1 (headline test): `tests/e2e/headline-scheduling.e2e.test.ts` runs `ImpactEstimator` + `Scheduler` + `WorktreeManager` unmodified against a real throwaway git repository.
   - Item 2 (optimistic re-run): `tests/e2e/optimistic-rerun.e2e.test.ts` drives a genuine `git rebase` conflict (two branches editing the same line) through `Rebaser`, then `Rerunner.handleFailure` tears down the losing worktree and creates a real new one off the new tip, and the retried change rebases cleanly — no mocked git anywhere except the (intentionally thin, GitHub-API-backed) `QueueAdapter`, which this scenario never calls since no PR is involved.
+  - Item 3 (semantic conflicts): `tests/e2e/semantic-conflict.e2e.test.ts` runs `SemanticConflictDetector` with its real `createDefaultExec` shell-out (not the fake `ExecFn`) against two genuine git worktrees of a sample repo. One branch widens a shared function's signature (`add(a, b)` → `add(a, b, c)`) without updating the other branch's call site; the real `npx tsc --noEmit` run in that worktree produces an actual `TS2554` arity error, which the cross-reference correctly attributes to the file the other branch is concurrently modifying.
 
   Outstanding, for future increments:
-  - Item 3 (semantic conflicts): `SemanticConflictDetector` only sees a fake `ExecFn` returning hand-written `tsc` output; needs a real `tsc --noEmit` run across two branches with an actual signature-breaking change.
   - Items 5 and 7 (release lifecycle, provenance/manifest): real-git and real-Linear-shaped fixtures instead of mocked `SimpleGit`/`SyncPool`.
   - Item 8 (MCP): the test suite calls registered tool handlers directly rather than round-tripping through the MCP stdio/JSON-RPC transport.
   - Items 4 and 6 (hotspot leases, gate policy) are inherently in-memory logic and are already genuinely proven by their existing unit tests — no gap there.
@@ -268,6 +268,26 @@ implemented — the push handler only logged. This increment makes both real:
   intentionally wrapped rather than reimplemented per the spec's build-vs-buy
   section); this scenario passes no `prNumber`, so it's never invoked.
 - [x] 1 new test; total test count 334
+
+### QC — Semantic conflict detection proven against a real `tsc` signature break (done)
+
+- [x] `tests/e2e/semantic-conflict.e2e.test.ts` — against a real, throwaway
+  sample repo with two genuine git worktrees (`WorktreeManager`, not mocked):
+  branch A widens a shared `add(a, b)` function to a required third
+  parameter (`add(a, b, c)`) but never touches the file that calls it;
+  branch B is concurrently editing that caller for an unrelated reason and
+  never sees branch A's change. `SemanticConflictDetector.detect` runs its
+  real `createDefaultExec` shell-out — an actual `npx tsc --noEmit` per
+  worktree, each discovering its own committed `tsconfig.json` the normal
+  way tsc does (upward directory search, no path override) — and the
+  real compiler reports a genuine `TS2554: Expected 3 arguments, but got 2`
+  at the caller's file and line. The cross-reference correctly attributes
+  branch A's real error to a file branch B is modifying, flagging it as a
+  cross-branch conflict; branch B's own worktree (unaware of the signature
+  change) typechecks clean, proving the detector doesn't false-positive on
+  the branch that didn't cause the break.
+- [x] 1 new test; total test count 335
+- [x] `npm run typecheck`, `npm run lint`, and `npm run build` verified green
 
 ## Documentation
 

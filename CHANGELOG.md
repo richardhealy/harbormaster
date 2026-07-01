@@ -4,6 +4,18 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (test: prove semantic conflict detection against a real tsc signature break)
+
+- `tests/e2e/semantic-conflict.e2e.test.ts`: closes checklist item 3 with real
+  git worktrees and a real `npx tsc --noEmit` run (via `createDefaultExec`,
+  not the fake `ExecFn`). One branch widens a shared function's signature
+  without updating its caller; the other branch is concurrently editing that
+  caller for an unrelated reason. The real compiler reports a genuine
+  `TS2554` arity error, which `SemanticConflictDetector` correctly attributes
+  as a cross-branch conflict against the file the other branch is modifying,
+  while the unaffected branch's own worktree typechecks clean
+- 1 new test; total test count 335
+
 ### Added — 2026-07-01 (test: prove optimistic re-run against a real rebase conflict)
 
 - `tests/e2e/optimistic-rerun.e2e.test.ts`: closes checklist item 2 the same
