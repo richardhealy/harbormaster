@@ -10,6 +10,8 @@ const ConfigSchema = z.object({
   GITHUB_APP_ID: z.string().optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().optional(),
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
+  GITHUB_PROTECTED_BRANCH: z.string().default('main'),
+  GITHUB_REQUIRED_STATUS_CHECKS: z.string().optional(),
   LINEAR_API_KEY: z.string().optional(),
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),

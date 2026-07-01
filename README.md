@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented and the full test suite (318 tests) passes. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
+**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented and the full test suite (331 tests) passes. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Documentation
 
@@ -106,7 +106,7 @@ await runMigrations(getPool(), './src/db/migrations')
 
 ### GitHub App
 
-Set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_WEBHOOK_SECRET` in your `.env`. Without these, the GitHub integration is disabled and the service still starts.
+Set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, and `GITHUB_WEBHOOK_SECRET` in your `.env`. Without these, the GitHub integration is disabled and the service still starts. When configured, `src/index.ts` starts a real HTTP webhook receiver on `PORT` and automatically configures branch protection (required status checks, required PR review) on `GITHUB_PROTECTED_BRANCH` — see [docs/integration.md](./docs/integration.md#3-github-integration) for the App permissions and setup steps.
 
 ## Release lifecycle
 

@@ -21,8 +21,12 @@
 - [x] Directory layout matching spec: release/, db/, integrations/github/, integrations/linear/
 - [x] Postgres schema + migration runner (`src/db/migrations/001_initial.sql`, `src/db/migrate.ts`)
   - audit_log, tickets, dispatches, gate_decisions, releases tables
-- [x] GitHub App skeleton (`src/integrations/github/`)
-  - App init via `@octokit/app`, webhook handlers (push, pull_request, check_suite)
+- [x] GitHub App (`src/integrations/github/`)
+  - App init via `@octokit/app`, webhook handlers (push, pull_request, check_suite,
+    installation, installation_repositories)
+  - HTTP webhook receiver actually mounted and listening (`server.ts`) — see
+    the dedicated entry below
+  - Real branch-protection enforcement, not just a log line — see below
 - [x] Linear client stub (`src/integrations/linear/`)
 - [x] Release lifecycle port from `release.sh` (`src/release/`)
   - [x] Semver bump from latest tag (`semver.ts`)
@@ -35,6 +39,40 @@
 - [x] CI configuration (`.github/workflows/ci.yml`)
 - [x] ESLint 9 flat config
 - [x] `PROGRESS.md`, `README.md`, `CHANGELOG.md`
+
+### M0 follow-up — GitHub webhook receiver + real branch protection (done)
+
+Closed a gap flagged during the documentation phase: `docs/integration.md`
+had honestly disclosed that `src/index.ts` initialized the GitHub App in
+memory but never started an HTTP listener, and that "enforces no direct
+main pushes and required checks" (spec.md line 73) was not actually
+implemented — the push handler only logged. This increment makes both real:
+
+- [x] `src/integrations/github/server.ts` — `startWebhookServer(app, port, path?)`
+  mounts `@octokit/webhooks`'s `createNodeMiddleware` on a real
+  `http.createServer`, so GitHub's webhook deliveries reach the process
+  instead of being registered on handlers nothing ever invokes
+- [x] `src/integrations/github/branch-protection.ts` — `enforceBranchProtection`
+  calls `PUT /repos/{owner}/{repo}/branches/{branch}/protection` (required
+  status checks, required PR review, `enforce_admins`, no push restrictions
+  bypass) — this is what actually backs "no direct main pushes and required
+  checks"; a webhook handler can only observe a push after the fact, so
+  enforcement has to be a standing GitHub-side repo setting
+- [x] `src/integrations/github/webhooks.ts` — `registerWebhooks` now also
+  listens for `installation.created` / `installation_repositories.added`
+  and calls `enforceBranchProtection` automatically for every repo the App
+  gains access to, using the installation-scoped Octokit `@octokit/app`
+  already injects into the event; protection failures (e.g. missing
+  Administration permission) log a warning instead of crashing the process
+- [x] `src/index.ts` wires it end to end: `config.PORT` now actually has a
+  listener on it, and `GITHUB_PROTECTED_BRANCH` / `GITHUB_REQUIRED_STATUS_CHECKS`
+  (new config, `src/config.ts`) drive the enforced policy
+- [x] `docs/integration.md` updated to describe the real behaviour instead
+  of the deferral
+- [x] 13 new unit tests (4 branch-protection, 7 webhooks, 2 server —
+  including a real HTTP round trip against a mocked webhook middleware);
+  total test count 331
+- [x] `npm run typecheck`, `npm run lint`, and `npm run build` verified green
 
 ### M2 — Optimistic re-run (done)
 
