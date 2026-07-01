@@ -4,6 +4,15 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (docs: integration guide)
+
+- `docs/integration.md`: standing up the control plane (Postgres, migrations,
+  env config), GitHub App setup (permissions, webhooks, branch protection +
+  merge queue enablement), Linear setup (API key, sync vs. live-fetch), and
+  driving harbormaster from an agent runtime (MCP) or a script/CI job (CLI),
+  each with concrete runnable examples, plus an end-to-end walkthrough
+- README: link to `docs/integration.md`
+
 ### Added — 2026-07-01 (docs: architecture dossier)
 
 - `docs/architecture.md`: component map, a data/control-flow diagram from

@@ -185,7 +185,7 @@
 | a | Doc comments (TSDoc) across the public surface | ☑ Done |
 | b | API reference documentation (CLI/MCP command surface) | ☑ Done |
 | c | Architecture dossier (`docs/architecture.md`) | ☑ Done |
-| d | Integration guide(s) (`docs/integration.md`) | ☐ Not started |
+| d | Integration guide(s) (`docs/integration.md`) | ☑ Done |
 | e | Usage/how-to guides, `docs/` index, final README pass | ☐ Not started |
 
 ### a — Doc comments (done)
@@ -241,3 +241,18 @@
   table, and a spec-section-to-code map
 - [x] `npm run typecheck`, `npm run lint`, and the full test suite (318
   tests) verified green (docs-only change; no source touched)
+
+### d — Integration guide (done)
+
+- [x] `docs/integration.md` — standing up the control plane (Postgres,
+  migrations, env config), GitHub App setup (permissions, webhook
+  subscription, branch protection + merge queue enablement), Linear setup
+  (API key, what syncs vs. what's fetched live), and the two agent-facing
+  integration surfaces (MCP for agent runtimes, CLI for scripts/CI) each
+  with concrete runnable examples
+- [x] An end-to-end walkthrough chaining all three external integrations
+  (Postgres, GitHub, Linear) with the CLI commands from `docs/api.md`, from
+  scheduling through merge-queue submission to a released version
+- [x] `npm run typecheck`, `npm run lint`, `npm run build`, and the full
+  test suite (318 tests) verified green (docs-only change; no source
+  touched)
