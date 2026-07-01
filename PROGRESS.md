@@ -14,14 +14,14 @@
 | M7 | Linear + provenance | ☑ Done |
 | M8 | Releases | ☑ Done |
 | M9 | Agent interface | ☑ Done |
-| QC | Best-in-class quality checklist — real (non-mocked) proof for each item | ◐ In progress (2 of 8 items proven end-to-end; see note below) |
+| QC | Best-in-class quality checklist — real (non-mocked) proof for each item | ◐ In progress (3 of 8 items proven end-to-end; see note below) |
 
-**Note on QC status:** 334 tests pass, but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests originally ran entirely against mocked git/HTTP/DB/subprocess clients — none exercised a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. Closed so far:
+**Note on QC status:** 336 tests pass, but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests originally ran entirely against mocked git/HTTP/DB/subprocess clients — none exercised a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. Closed so far:
   - Item 1 (headline test): `tests/e2e/headline-scheduling.e2e.test.ts` runs `ImpactEstimator` + `Scheduler` + `WorktreeManager` unmodified against a real throwaway git repository.
   - Item 2 (optimistic re-run): `tests/e2e/optimistic-rerun.e2e.test.ts` drives a genuine `git rebase` conflict (two branches editing the same line) through `Rebaser`, then `Rerunner.handleFailure` tears down the losing worktree and creates a real new one off the new tip, and the retried change rebases cleanly — no mocked git anywhere except the (intentionally thin, GitHub-API-backed) `QueueAdapter`, which this scenario never calls since no PR is involved.
+  - Item 3 (semantic conflicts): `tests/e2e/semantic-conflict.e2e.test.ts` runs `SemanticConflictDetector` against a real, locally-installed `tsc --noEmit` (no fake `ExecFn`) over two real git worktrees: one branch widens a shared function's signature without updating its caller, the other independently edits that same caller for an unrelated reason. The signature branch's own real typecheck fails on the caller it left behind; the detector correctly flags the cross-branch conflict because that real error lands in a file the other branch touched. A second case proves two genuinely independent, clean branches are not flagged.
 
   Outstanding, for future increments:
-  - Item 3 (semantic conflicts): `SemanticConflictDetector` only sees a fake `ExecFn` returning hand-written `tsc` output; needs a real `tsc --noEmit` run across two branches with an actual signature-breaking change.
   - Items 5 and 7 (release lifecycle, provenance/manifest): real-git and real-Linear-shaped fixtures instead of mocked `SimpleGit`/`SyncPool`.
   - Item 8 (MCP): the test suite calls registered tool handlers directly rather than round-tripping through the MCP stdio/JSON-RPC transport.
   - Items 4 and 6 (hotspot leases, gate policy) are inherently in-memory logic and are already genuinely proven by their existing unit tests — no gap there.
@@ -268,6 +268,37 @@ implemented — the push handler only logged. This increment makes both real:
   intentionally wrapped rather than reimplemented per the spec's build-vs-buy
   section); this scenario passes no `prNumber`, so it's never invoked.
 - [x] 1 new test; total test count 334
+
+### QC — Semantic conflict detection proven against a real `tsc --noEmit` run (done)
+
+- [x] `tests/e2e/semantic-conflict.e2e.test.ts` — against a real, throwaway git
+  repository (same pattern as the other QC e2e tests): a shared module
+  exports `add(a, b)`, and a caller imports and calls it. One real worktree
+  widens `add`'s signature to `add(a, b, c)` but never touches the caller —
+  a realistic agent change scoped to the file it thinks it owns. A second,
+  independent worktree edits only the caller for an unrelated reason,
+  unaware of the signature change. `SemanticConflictDetector` runs the
+  genuine, locally-installed TypeScript compiler (`node_modules/.bin/tsc
+  --noEmit`) in each worktree via the real `ExecFn` code path — the only
+  substitution is resolving the compiler binary directly instead of via
+  `npx`, to keep the test independent of registry/network access; the
+  command executed, the process spawned, and the compiler diagnostics
+  parsed are all real, not fixtures:
+  - The signature-changing branch's own typecheck genuinely fails (real
+    `TS2554` on the untouched caller), since it left a 2-argument call site
+    against a function that now requires three.
+  - The caller-editing branch's own typecheck is genuinely clean.
+  - The cross-branch conflict is correctly flagged because the first
+    branch's real type error lands in a file the second branch modified —
+    proving the spec's "signature change that breaks a caller on another
+    branch is caught by semantic detection before merge" checklist item
+    (spec.md line 110) against actual compiler output, not a scripted one.
+  - A second test proves the negative: two genuinely independent, clean
+    branches produce no cross-branch conflict, so the detector isn't just
+    always flagging pairs.
+- [x] 2 new tests; total test count 336
+- [x] `npm run typecheck`, `npm run lint`, and `npm run build` verified
+  green; full test suite passes
 
 ## Documentation
 

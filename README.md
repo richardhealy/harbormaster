@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented, the GitHub App mounts a real webhook receiver and enforces branch protection, and the full test suite (334 tests) passes. Most tests exercise the logic against mocked git/HTTP/DB clients; two of the spec's quality-checklist guarantees are additionally proven against a real, throwaway git repository: the headline scheduling test (`tests/e2e/headline-scheduling.e2e.test.ts`) and optimistic re-run through a genuine rebase conflict (`tests/e2e/optimistic-rerun.e2e.test.ts`). See [PROGRESS.md](./PROGRESS.md) for the milestone tracker and the remaining real-git/real-subprocess proof gaps.
+**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented, the GitHub App mounts a real webhook receiver and enforces branch protection, and the full test suite (336 tests) passes. Most tests exercise the logic against mocked git/HTTP/DB clients; three of the spec's quality-checklist guarantees are additionally proven against real subprocesses rather than mocks: the headline scheduling test (`tests/e2e/headline-scheduling.e2e.test.ts`) and optimistic re-run through a genuine rebase conflict (`tests/e2e/optimistic-rerun.e2e.test.ts`) against a real, throwaway git repository, and semantic-conflict detection (`tests/e2e/semantic-conflict.e2e.test.ts`) against a real `tsc --noEmit` run catching a genuine signature break. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker and the remaining real-git/real-subprocess proof gaps.
 
 ## Documentation
 

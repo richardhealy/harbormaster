@@ -4,6 +4,20 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (test: prove semantic conflict detection against a real tsc run)
+
+- `tests/e2e/semantic-conflict.e2e.test.ts`: closes checklist item 3 — real
+  `tsc --noEmit`, not a fake `ExecFn` returning hand-written output. One real
+  git worktree widens a shared function's signature without updating its
+  caller; a second, independent worktree edits that same caller for an
+  unrelated reason. `SemanticConflictDetector` runs the actual
+  locally-installed TypeScript compiler in each worktree; the
+  signature-changing branch's own typecheck genuinely fails on the caller it
+  left behind, and the cross-branch check correctly flags the conflict
+  because that real error lands in a file the other branch touched. A second
+  case proves two genuinely independent, clean branches aren't flagged
+- 2 new tests; total test count 336
+
 ### Added — 2026-07-01 (test: prove optimistic re-run against a real rebase conflict)
 
 - `tests/e2e/optimistic-rerun.e2e.test.ts`: closes checklist item 2 the same
