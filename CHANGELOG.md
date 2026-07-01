@@ -4,6 +4,19 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (test: prove semantic conflict detection against a real tsc run)
+
+- `tests/e2e/semantic-conflict.e2e.test.ts`: closes checklist item 3. Two real
+  git worktrees off a throwaway sample repo — one breaks a shared function's
+  signature without touching its caller, the other independently edits the
+  caller. `SemanticConflictDetector.detect` runs the genuine TypeScript
+  compiler (`node <typescript/bin/tsc>`, resolved from harbormaster's own
+  `node_modules` so no network access or per-worktree `node_modules` copy is
+  needed) and correctly reports a real `TS2554` diagnostic on the
+  signature-breaking branch, a clean result on the other branch, and exactly
+  one cross-branch conflict pointing at the shared caller file — no fixture
+  stdout involved.
+
 ### Added — 2026-07-01 (test: prove optimistic re-run against a real rebase conflict)
 
 - `tests/e2e/optimistic-rerun.e2e.test.ts`: closes checklist item 2 the same

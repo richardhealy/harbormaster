@@ -16,7 +16,7 @@ Three layers, in priority order:
 
 ## Status
 
-**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented, the GitHub App mounts a real webhook receiver and enforces branch protection, and the full test suite (334 tests) passes. Most tests exercise the logic against mocked git/HTTP/DB clients; two of the spec's quality-checklist guarantees are additionally proven against a real, throwaway git repository: the headline scheduling test (`tests/e2e/headline-scheduling.e2e.test.ts`) and optimistic re-run through a genuine rebase conflict (`tests/e2e/optimistic-rerun.e2e.test.ts`). See [PROGRESS.md](./PROGRESS.md) for the milestone tracker and the remaining real-git/real-subprocess proof gaps.
+**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented, the GitHub App mounts a real webhook receiver and enforces branch protection, and the full test suite (335 tests) passes. Most tests exercise the logic against mocked git/HTTP/DB clients; three of the spec's quality-checklist guarantees are additionally proven against a real, throwaway git repository: the headline scheduling test (`tests/e2e/headline-scheduling.e2e.test.ts`), optimistic re-run through a genuine rebase conflict (`tests/e2e/optimistic-rerun.e2e.test.ts`), and cross-branch semantic conflict detection through a genuine `tsc --noEmit` run (`tests/e2e/semantic-conflict.e2e.test.ts`). See [PROGRESS.md](./PROGRESS.md) for the milestone tracker and the remaining real-git/real-subprocess proof gaps.
 
 ## Documentation
 
@@ -63,6 +63,8 @@ tests/
   integration/      # Unit tests for worktrees (13), queue (15), rerun (27), semantic (21)
   release/          # Unit tests for the git release lifecycle module (35 tests)
   agent-iface/      # Unit tests for commands, CLI dispatch, and the MCP tool registry (26 tests)
+  e2e/              # Real-git/real-subprocess proofs of the QC checklist (headline scheduling,
+                    # optimistic re-run, semantic conflict detection)
 .github/
   workflows/
     ci.yml          # Typecheck → lint → build → test on every push/PR

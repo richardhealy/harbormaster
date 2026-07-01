@@ -14,14 +14,14 @@
 | M7 | Linear + provenance | ☑ Done |
 | M8 | Releases | ☑ Done |
 | M9 | Agent interface | ☑ Done |
-| QC | Best-in-class quality checklist — real (non-mocked) proof for each item | ◐ In progress (2 of 8 items proven end-to-end; see note below) |
+| QC | Best-in-class quality checklist — real (non-mocked) proof for each item | ◐ In progress (3 of 8 items proven end-to-end; see note below) |
 
-**Note on QC status:** 334 tests pass, but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests originally ran entirely against mocked git/HTTP/DB/subprocess clients — none exercised a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. Closed so far:
+**Note on QC status:** 335 tests pass, but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests originally ran entirely against mocked git/HTTP/DB/subprocess clients — none exercised a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. Closed so far:
   - Item 1 (headline test): `tests/e2e/headline-scheduling.e2e.test.ts` runs `ImpactEstimator` + `Scheduler` + `WorktreeManager` unmodified against a real throwaway git repository.
   - Item 2 (optimistic re-run): `tests/e2e/optimistic-rerun.e2e.test.ts` drives a genuine `git rebase` conflict (two branches editing the same line) through `Rebaser`, then `Rerunner.handleFailure` tears down the losing worktree and creates a real new one off the new tip, and the retried change rebases cleanly — no mocked git anywhere except the (intentionally thin, GitHub-API-backed) `QueueAdapter`, which this scenario never calls since no PR is involved.
+  - Item 3 (semantic conflicts): `tests/e2e/semantic-conflict.e2e.test.ts` runs the genuine TypeScript compiler (`node <typescript/bin/tsc>`, resolved from harbormaster's own `node_modules` so the test needs no network access) against two real git worktrees off a throwaway sample repo. One branch breaks a shared function's signature without touching the caller; the other branch independently edits the caller, unaware of the break. `SemanticConflictDetector.detect` correctly reports the signature-changing branch as dirty (`TS2554`, a real compiler diagnostic, not a fixture), the caller-editing branch as clean, and flags exactly one cross-branch conflict against the caller file — the spec's checklist item 3 ("a signature change that breaks a caller on another branch is caught by semantic detection before merge") proven end to end.
 
   Outstanding, for future increments:
-  - Item 3 (semantic conflicts): `SemanticConflictDetector` only sees a fake `ExecFn` returning hand-written `tsc` output; needs a real `tsc --noEmit` run across two branches with an actual signature-breaking change.
   - Items 5 and 7 (release lifecycle, provenance/manifest): real-git and real-Linear-shaped fixtures instead of mocked `SimpleGit`/`SyncPool`.
   - Item 8 (MCP): the test suite calls registered tool handlers directly rather than round-tripping through the MCP stdio/JSON-RPC transport.
   - Items 4 and 6 (hotspot leases, gate policy) are inherently in-memory logic and are already genuinely proven by their existing unit tests — no gap there.
@@ -268,6 +268,35 @@ implemented — the push handler only logged. This increment makes both real:
   intentionally wrapped rather than reimplemented per the spec's build-vs-buy
   section); this scenario passes no `prNumber`, so it's never invoked.
 - [x] 1 new test; total test count 334
+
+### QC — Semantic conflict detection proven against a real `tsc` run (done)
+
+- [x] `tests/e2e/semantic-conflict.e2e.test.ts` — against the same kind of
+  real, throwaway git repository: a sample project with a shared module
+  (`src/shared/format.ts`) and a caller (`src/callers/invoice.ts`). Two real
+  git worktrees are created off `main`. Branch A breaks `formatTotal`'s
+  signature (adds a required parameter) without touching the caller — a
+  realistic partial edit. Branch B independently edits the caller, with no
+  idea branch A changed the signature. `SemanticConflictDetector.detect` runs
+  the genuine TypeScript compiler (`node <typescript/bin/tsc>`, resolved from
+  harbormaster's own `node_modules` and invoked directly so the test needs no
+  network access and no `node_modules` copy inside each throwaway worktree —
+  but the binary and its diagnostics are the real compiler, not scripted
+  stdout) in each worktree:
+  - Branch A's own full checkout still carries the caller's original
+    one-argument call site (it never touched that file), so the real
+    compiler reports a genuine `TS2554` ("Expected 2 arguments, but got 1")
+    there.
+  - Branch B's checkout still has the original, compatible signature, so it
+    typechecks clean.
+  - The cross-branch detector connects the two: branch A's real compiler
+    error lands in exactly the file branch B changed, so it's flagged as one
+    cross-branch semantic conflict — the spec's checklist item 3 ("a
+    signature change that breaks a caller on another branch is caught by
+    semantic detection before merge") proven end to end with a real
+    compiler, not a hand-written fixture.
+- [x] 1 new test; total test count 335
+- [x] `npm run typecheck`, `npm run lint`, and `npm run build` verified green
 
 ## Documentation
 
