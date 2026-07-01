@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (docs: architecture dossier)
+
+- `docs/architecture.md`: component map, a data/control-flow diagram from
+  Linear ticket through scheduler, worktrees, merge queue, rerun, gates,
+  provenance, and release manifest generation, key design decisions and
+  trade-offs, an external-dependencies table, and a spec-section-to-code map
+
 ### Added — 2026-06-30 (docs: API reference)
 
 - `docs/api.md`: full reference for the agent-facing command surface (the

@@ -184,7 +184,7 @@
 |---|-------------|--------|
 | a | Doc comments (TSDoc) across the public surface | ☑ Done |
 | b | API reference documentation (CLI/MCP command surface) | ☑ Done |
-| c | Architecture dossier (`docs/architecture.md`) | ☐ Not started |
+| c | Architecture dossier (`docs/architecture.md`) | ☑ Done |
 | d | Integration guide(s) (`docs/integration.md`) | ☐ Not started |
 | e | Usage/how-to guides, `docs/` index, final README pass | ☐ Not started |
 
@@ -226,3 +226,18 @@
   couldn't structurally satisfy. Narrowed it to a single-shape `query()`
   interface matching the `ProvenancePool`/`SyncPool` pattern used elsewhere
   in the codebase. `npm run typecheck` (part of CI) is green again.
+
+### c — Architecture dossier (done)
+
+- [x] `docs/architecture.md` — component map of every `src/` module, an
+  ASCII data/control-flow diagram from Linear ticket through scheduler,
+  worktrees, merge queue, rerun, gates, provenance, and release manifest
+  generation, a table of key design decisions and trade-offs (schedule-
+  against-impact vs. locking, wrap-not-build the merge queue, optimistic
+  rerun with a capped retry, hotspot leases scoped to only the declared
+  set, per-domain gate policy, dependency injection with a singleton
+  exception for the long-running MCP process, tsc-reuse for semantic
+  conflicts, release.sh as a port not a rewrite), an external-dependencies
+  table, and a spec-section-to-code map
+- [x] `npm run typecheck`, `npm run lint`, and the full test suite (318
+  tests) verified green (docs-only change; no source touched)
