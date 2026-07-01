@@ -4,6 +4,18 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (test: prove optimistic re-run against a real rebase conflict)
+
+- `tests/e2e/optimistic-rerun.e2e.test.ts`: closes checklist item 2 the same
+  way item 1 was closed — real git, not mocked `SimpleGit`. Two branches edit
+  the same line of a file (one lands on `main` first); `Rebaser.rebase` hits
+  a genuine rebase conflict and aborts cleanly; `Rerunner.handleFailure` tears
+  down the losing worktree, resolves the real new tip of `main`, and creates
+  a fresh worktree for the retry; the retried change (a real non-colliding
+  edit against the current file) rebases cleanly and lands with both edits
+  intact
+- 1 new test; total test count 334
+
 ### Added — 2026-07-01 (feat: GitHub webhook receiver + branch protection enforcement)
 
 - `src/integrations/github/server.ts`: `startWebhookServer` mounts a real

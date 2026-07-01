@@ -14,10 +14,13 @@
 | M7 | Linear + provenance | ☑ Done |
 | M8 | Releases | ☑ Done |
 | M9 | Agent interface | ☑ Done |
-| QC | Best-in-class quality checklist — real (non-mocked) proof for each item | ◐ In progress (1 of 8 items proven end-to-end; see note below) |
+| QC | Best-in-class quality checklist — real (non-mocked) proof for each item | ◐ In progress (2 of 8 items proven end-to-end; see note below) |
 
-**Note on QC status:** all 318→320 tests passed at the time of this review (333 after merging in the webhook-receiver/branch-protection increment alongside it), but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests run entirely against mocked git/HTTP/DB/subprocess clients — none exercise a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. `tests/e2e/headline-scheduling.e2e.test.ts` closes this for item 1 (the headline test) by running `ImpactEstimator` + `Scheduler` + `WorktreeManager` unmodified against a real throwaway git repository. Outstanding, for future increments:
-  - Item 2 (optimistic re-run): `Rebaser`/`Rerunner` are only exercised against mocked `SimpleGit`; needs a real rebase conflict (two branches editing the same lines) driven through a real repo.
+**Note on QC status:** 334 tests pass, but a review against the spec's own "Best-in-class quality checklist" (spec.md) found that every milestone's tests originally ran entirely against mocked git/HTTP/DB/subprocess clients — none exercised a real git repo, so the checklist's own wording ("proven on a sample repo", "a genuine collision... caught... without human intervention") wasn't actually met anywhere. Closed so far:
+  - Item 1 (headline test): `tests/e2e/headline-scheduling.e2e.test.ts` runs `ImpactEstimator` + `Scheduler` + `WorktreeManager` unmodified against a real throwaway git repository.
+  - Item 2 (optimistic re-run): `tests/e2e/optimistic-rerun.e2e.test.ts` drives a genuine `git rebase` conflict (two branches editing the same line) through `Rebaser`, then `Rerunner.handleFailure` tears down the losing worktree and creates a real new one off the new tip, and the retried change rebases cleanly — no mocked git anywhere except the (intentionally thin, GitHub-API-backed) `QueueAdapter`, which this scenario never calls since no PR is involved.
+
+  Outstanding, for future increments:
   - Item 3 (semantic conflicts): `SemanticConflictDetector` only sees a fake `ExecFn` returning hand-written `tsc` output; needs a real `tsc --noEmit` run across two branches with an actual signature-breaking change.
   - Items 5 and 7 (release lifecycle, provenance/manifest): real-git and real-Linear-shaped fixtures instead of mocked `SimpleGit`/`SyncPool`.
   - Item 8 (MCP): the test suite calls registered tool handlers directly rather than round-tripping through the MCP stdio/JSON-RPC transport.
@@ -245,6 +248,26 @@ implemented — the push handler only logged. This increment makes both real:
 - [x] Identified (but did not yet close) the same real-git/real-subprocess gap in
   the optimistic re-run, semantic-conflict, release-lifecycle, provenance, and MCP
   transport tests — see the QC note above the milestone table for what's left.
+
+### QC — Optimistic re-run proven against a real rebase conflict (done)
+
+- [x] `tests/e2e/optimistic-rerun.e2e.test.ts` — against the same kind of real,
+  throwaway git repository: two branches independently edit the same line of
+  `src/payments/charge.ts` (one committed straight to `main`, simulating a
+  change that landed first). `Rebaser.rebase` runs a genuine `git rebase` and
+  hits a real conflict; the worktree is confirmed left clean (no `<<<<<<<`
+  markers) after the automatic abort. `Rerunner.handleFailure` then tears down
+  the losing worktree via the real `WorktreeManager`, resolves the actual new
+  tip SHA of `main` (asserted against `git rev-parse main` directly, not an
+  assumption), and creates a fresh worktree off it. The agent's retried change
+  is written as a genuinely non-colliding edit against the *current* file
+  content (not scripted around the conflict), and a second real `git rebase`
+  lands it cleanly — the final file contains both the original collision
+  winner's edit and the retry's edit, proving nothing was lost.
+- [x] The only non-real piece is `QueueAdapter` (GitHub's merge-queue API,
+  intentionally wrapped rather than reimplemented per the spec's build-vs-buy
+  section); this scenario passes no `prNumber`, so it's never invoked.
+- [x] 1 new test; total test count 334
 
 ## Documentation
 
