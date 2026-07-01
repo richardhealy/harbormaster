@@ -184,7 +184,7 @@
 |---|-------------|--------|
 | a | Doc comments (TSDoc) across the public surface | ☑ Done |
 | b | API reference documentation (CLI/MCP command surface) | ☑ Done |
-| c | Architecture dossier (`docs/architecture.md`) | ☐ Not started |
+| c | Architecture dossier (`docs/architecture.md`) | ☑ Done |
 | d | Integration guide(s) (`docs/integration.md`) | ☐ Not started |
 | e | Usage/how-to guides, `docs/` index, final README pass | ☐ Not started |
 
@@ -226,3 +226,23 @@
   couldn't structurally satisfy. Narrowed it to a single-shape `query()`
   interface matching the `ProvenancePool`/`SyncPool` pattern used elsewhere
   in the codebase. `npm run typecheck` (part of CI) is green again.
+
+### c — Architecture dossier (done)
+
+- [x] `docs/architecture.md` — component map matching the spec's directory
+  tree one-to-one, plus a Mermaid module-dependency graph
+- [x] Data/control flow through a full dispatch: plan a wave (impact
+  estimation → scheduler merge/sequence/parallel decision), dispatch and
+  integrate (worktree → merge queue → gate pipeline, or → `Rerunner` on
+  failure), hotspot leases, gates, provenance/releases, and the agent
+  interface
+- [x] Key design decisions and trade-offs: schedule-first vs. lock-first,
+  wrap-not-rebuild the merge queue, dependency-injected I/O throughout,
+  CLI/MCP as thin adapters over `commands.ts`, strictest-domain gate
+  resolution, append-only provenance
+- [x] External dependency table (GitHub, Linear, Postgres, simple-git, zod,
+  MCP SDK, semver, `tsc`) with the role each plays
+- [x] Spec-to-code map: one row per `spec.md` scope item to the module(s)
+  implementing it
+- [x] `npm run build`, `npm run lint`, and the full test suite (318 tests)
+  verified green after the change (docs-only; no source touched)

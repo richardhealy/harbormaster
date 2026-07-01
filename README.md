@@ -21,6 +21,7 @@ Three layers, in priority order:
 ## Documentation
 
 - [docs/api.md](./docs/api.md) — full reference for the agent-facing command surface (CLI + MCP), shared by both transports: request/response shapes, configuration, and error cases for all 14 commands.
+- [docs/architecture.md](./docs/architecture.md) — component map, data/control flow through a dispatch, key design decisions and trade-offs, external dependencies, and a spec-to-code map.
 
 ## Project layout
 

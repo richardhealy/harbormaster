@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (docs: architecture dossier)
+
+- `docs/architecture.md`: component map, module dependency graph (Mermaid),
+  end-to-end data/control flow for a dispatch (plan → integrate → gate →
+  provenance/release), key design decisions and trade-offs, external
+  dependency table, and a spec-to-code map from every `spec.md` scope item
+  to the module implementing it
+
 ### Added — 2026-06-30 (docs: API reference)
 
 - `docs/api.md`: full reference for the agent-facing command surface (the
