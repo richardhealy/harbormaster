@@ -4,6 +4,23 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added — 2026-07-01 (docs: how-to guides, docs index, README pass)
+
+- `docs/how-to.md`: task-oriented recipes for every module, each verified
+  live against the current build — the scheduler's headline parallel/
+  sequence/merge demo, declaring a hotspot and taking/blocking/releasing an
+  advisory lease, running the gate pipeline at medium and high risk,
+  recording/querying provenance, and running a release end to end — plus a
+  troubleshooting table
+- `docs/README.md`: documentation index with a what-to-read-when table and
+  role-based reading order
+- `README.md`: linked the new how-to guide and docs index; replaced the
+  per-module deep-dive code examples (now covered by `docs/how-to.md`,
+  `docs/api.md`, `docs/integration.md`) with a compact module overview and
+  a task-routed "Where to go next" section
+- This completes the documentation phase: every deliverable in
+  `PROGRESS.md`'s Documentation section is now done
+
 ### Added — 2026-07-01 (docs: integration guide)
 
 - `docs/integration.md`: how to stand the control plane up (Postgres,

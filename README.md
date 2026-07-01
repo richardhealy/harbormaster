@@ -16,10 +16,13 @@ Three layers, in priority order:
 
 ## Status
 
-**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented and the full test suite passes. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker. Documentation is in progress.
+**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented and the full test suite (318 tests) passes. See [PROGRESS.md](./PROGRESS.md) for the milestone tracker.
 
 ## Documentation
 
+Start at [docs/README.md](./docs/README.md) for the full index and reading-order guidance. Quick links:
+
+- [docs/how-to.md](./docs/how-to.md) — copy-pasteable recipes: run the scheduler demo, take a hotspot lease, run a gate, record provenance, cut a release, plus a troubleshooting table.
 - [docs/api.md](./docs/api.md) — full reference for the agent-facing command surface (CLI + MCP), shared by both transports: request/response shapes, configuration, and error cases for all 14 commands.
 - [docs/architecture.md](./docs/architecture.md) — component map, data/control-flow diagram, key design decisions and trade-offs, external dependencies, and where each part of the spec lives in the code.
 - [docs/integration.md](./docs/integration.md) — how to stand the control plane up, drive it as an agent (CLI, MCP, or in-process), wire up GitHub and Linear, and a worked end-to-end flow.
@@ -46,7 +49,7 @@ src/
     linear/         # Linear API client + TicketSyncer
   agent-iface/      # Agent-facing command surface shared by the CLI and MCP server
     commands.ts     # One function per operation: schedule, hotspot, gate, provenance, release
-    schemas.ts       # Zod schemas shared by both surfaces
+    schemas.ts      # Zod schemas shared by both surfaces
     cli/            # `harbormaster <command> <json-payload>` — single-shot JSON-in/JSON-out CLI
     mcp/            # MCP server — one tool per command, stdio transport
   config.ts         # Zod-validated config from environment
@@ -119,214 +122,42 @@ The `src/release/` module is a TypeScript port of the `ggsa-spt/release.sh` work
 | `syncDevelop(git)` | Merges main into develop, auto-resolving the package.json version conflict |
 | `featureBranchName({type, ticketId, description})` | Returns `feat/ENG-123/add-user-auth` style branch name |
 
-## Integration layer
+## Modules at a glance
 
-### Worktrees (`src/integration/worktrees/`)
+| Module | What it does |
+|---|---|
+| `src/impact/` + `src/scheduler/` | Estimates each ticket's impact surface and produces a dispatch plan — parallel/sequence/merge — so overlapping work rarely runs concurrently. |
+| `src/integration/worktrees/` | Per-dispatch git worktrees off the current tip, so agents never share a working tree. |
+| `src/integration/queue/` | Adapter over GitHub's native merge queue: enqueue via auto-merge, track status, dequeue. |
+| `src/integration/rerun/` | Rebase, CI-on-result, and automatic re-dispatch for the losing side of a collision. |
+| `src/integration/semantic/` | Cross-branch `tsc` typecheck to catch a signature change breaking a caller on another branch, before either merges. |
+| `src/hotspots/` | Advisory leases for the small declared set of un-mergeable paths (migrations, shared contracts); everything else stays lock-free. |
+| `src/gates/` | Scope / CI / QA / HITL pipeline, policy resolved per domain risk level. |
+| `src/provenance/` | Immutable audit log — every dispatch, gate decision, and merge traces to a ticket and an actor. |
+| `src/releases/` | Linear-planned releases: manifests, categorised release notes, freeze windows. |
+| `src/agent-iface/` | The CLI and MCP server agents actually drive the loop through — one function per operation, shared zod schemas, no logic duplicated between the two surfaces. |
 
-`WorktreeManager` creates isolated git worktrees for each dispatch so agents never touch the same working tree:
+For runnable examples of every module above — the scheduler's parallel/sequence/merge decisions, taking a hotspot lease, running a gate, recording provenance, cutting a release — see **[docs/how-to.md](./docs/how-to.md)**. For exact request/response shapes, see **[docs/api.md](./docs/api.md)**. For how the modules connect end to end, see **[docs/architecture.md](./docs/architecture.md)**.
 
-```typescript
-import { createWorktreeManager } from './src/integration/worktrees'
-import { simpleGit } from 'simple-git'
+## Agent interface
 
-const manager = createWorktreeManager(simpleGit('/repo'), '/repo')
-const info = await manager.create({ dispatchId: 'disp-1', branch: 'feat/ENG-1/my-feature' })
-// → { path: '/repo/.worktrees/disp-1', branch: 'feat/ENG-1/my-feature', ... }
-await manager.remove('disp-1')
-```
-
-### Queue adapter (`src/integration/queue/`)
-
-`GitHubMergeQueueAdapter` wraps GitHub's native merge queue. Enabling auto-merge on a PR submits it to the queue (requires merge-queue branch protection on the target branch):
-
-```typescript
-import { GitHubMergeQueueAdapter } from './src/integration/queue'
-
-const queue = new GitHubMergeQueueAdapter(octokit, 'owner', 'repo')
-await queue.enqueue(42, 'squash', 'disp-1')  // enables auto-merge → enters GitHub merge queue
-await queue.listQueued()                       // lists all PRs with auto-merge enabled
-queue.updateStatus(42, 'merged')              // called from merge_group webhook
-```
-
-## Scheduler (`src/impact/` + `src/scheduler/`)
-
-The conflict-aware scheduler is the core of harbormaster. It takes a set of tickets with estimated impact surfaces and produces a dispatch plan that prevents most collisions before work begins.
-
-### Impact estimation (`src/impact/`)
-
-```typescript
-import { ImpactEstimator } from './src/impact'
-
-const estimator = new ImpactEstimator()
-
-// From explicit file list (confidence 1.0)
-const surface = estimator.estimate({
-  ticketId: 'ENG-1',
-  title: 'Refactor release branch logic',
-  expectedFiles: ['src/release/branch.ts', 'src/release/tags.ts'],
-})
-
-// From labels/keywords (confidence 0.6 / 0.3)
-const surface2 = estimator.estimate({
-  ticketId: 'ENG-2',
-  title: 'Add hotfix support',
-  labels: ['release'],
-})
-```
-
-### Scheduling (`src/scheduler/`)
-
-```typescript
-import { Scheduler } from './src/scheduler'
-
-const scheduler = new Scheduler({ mergeThreshold: 0.5, sequenceThreshold: 0 })
-
-const plan = scheduler.plan(
-  [{ ticketId: 'ENG-1' }, { ticketId: 'ENG-2' }, { ticketId: 'ENG-3' }],
-  new Map([
-    ['ENG-1', surface1],
-    ['ENG-2', surface2],
-    ['ENG-3', surface3],
-  ])
-)
-
-// plan.waves — ordered execution waves
-// plan.waves[0] — runs in parallel (no overlap)
-// plan.waves[1] — runs after wave 0 completes (overlapping groups)
-// Merged groups (decision: 'merge') go to one agent as a single job
-```
-
-Decision rules (by Jaccard overlap score):
-- `overlap >= mergeThreshold` → **merge**: dispatch both tickets to one agent as a single job
-- `0 < overlap < mergeThreshold` → **sequence**: run one ticket after the other
-- `overlap == 0` → **parallel**: safe to run at the same time
-
-## Gate pipeline (`src/gates/`)
-
-Every change passes through a configurable gate pipeline before merge. Stages run in order; the pipeline stops at the first failure.
-
-| Stage | When it runs | What it checks |
-|-------|-------------|----------------|
-| **scope** | Always | Drift ratio: unexpected files / expected files. Passes if no files were predicted (low confidence). |
-| **ci** | Always | Injectable `CICheckFn` — must return `'success'`. |
-| **qa** | When `policy.requiresQA` | Injectable `QACheckFn` — eval score, automated checks, or sign-off. |
-| **hitl** | When `policy.requiresHITL` | Injectable `ApprovalFn` — human reviewer must approve. |
-
-### Domain risk levels
-
-`resolvePolicy(domains)` picks the **strictest** policy across all input domains:
-
-| Risk | Domains | Scope threshold | QA | HITL |
-|------|---------|----------------|-----|------|
-| **low** | `docs`, `readme` | 200% | — | — |
-| **medium** (default) | `release`, `scheduler`, `integration/*`, `agent-iface`, `integrations/*` | 50% | ✓ | — |
-| **high** | `db`, `hotspots`, `provenance` | 20% | ✓ | ✓ |
-
-```typescript
-import { createGatePipeline, resolvePolicy } from './src/gates'
-
-const pipeline = createGatePipeline({
-  checkCI: async branch => {
-    // query GitHub check runs for this branch ref
-    return 'success'
-  },
-  runQA: async (dispatchId, branch) => {
-    // run automated eval or check sign-off
-    return { passed: true }
-  },
-  approve: async (dispatchId, ticketId) => {
-    // block until a human approves via Slack / GitHub review
-    return true
-  },
-})
-
-const result = await pipeline.run({
-  dispatchId: 'disp-42',
-  ticketId: 'ENG-42',
-  branch: 'feat/ENG-42/add-feature',
-  domains: ['release'],           // resolves to medium-risk policy
-  expectedFiles: ['src/release/branch.ts'],
-  actualFiles: ['src/release/branch.ts'],
-})
-// result.passed → true
-// result.gates  → [{stage:'scope',status:'pass'}, {stage:'ci',status:'pass'}, {stage:'qa',status:'pass'}]
-```
-
-## Releases (`src/releases/`)
-
-`ReleaseManager` assembles Linear-planned releases, generates manifests and notes, and enforces freeze windows:
-
-```typescript
-import { createReleaseManager } from './src/releases'
-
-const manager = createReleaseManager(pool)
-
-// Create a release record
-const release = await manager.create('1.2.0', {
-  branch: 'release/1.2.0',
-  linearCycleId: 'cycle-abc',
-})
-
-// Pull tickets from Linear and build the manifest
-const manifest = await manager.buildManifest(release.id, linearClient, 'team-eng', ['v1.2.0'])
-// manifest.tickets — ManifestTicket[] with status, priority, labels, assignee
-// manifest.summary — { total, byStatus, byPriority }
-
-// Generate markdown release notes categorised by label
-const notes = manager.generateNotes(manifest)
-// ## Features  →  feat/feature-labelled tickets
-// ## Fixes     →  bug/fix-labelled tickets
-// ## Improvements → chore/enhancement-labelled tickets
-// ## Other     →  everything else
-await manager.saveNotes(release.id, notes)
-
-// Freeze the release (no new merges)
-await manager.setFreezeWindow(release.id, new Date('2024-07-01T12:00:00Z'))
-const frozen = await manager.isInFreezeWindow(release.id)  // true after freeze_at
-
-// Mark shipped
-await manager.updateStatus(release.id, 'released')  // sets released_at = NOW()
-
-// List all planning-stage releases
-const planning = await manager.listReleases('planning')
-```
-
-## Agent interface (`src/agent-iface/`)
-
-Agents drive the harbormaster loop through two thin surfaces over the same command layer (`src/agent-iface/commands.ts`): a single-shot CLI and a long-running MCP server. Neither surface contains any logic of its own — they validate input against the same zod schemas and call straight into `commands.ts`, so the two can never drift apart.
-
-### CLI
-
-Every subcommand takes a JSON payload, either as the last argument or piped via stdin with `--stdin`, and prints JSON to stdout:
+Agents drive harbormaster through two thin surfaces over the same command layer (`src/agent-iface/commands.ts`): a single-shot CLI and a long-running MCP server. Neither surface has logic of its own — both validate against the same zod schemas and call straight into `commands.ts`.
 
 ```bash
-npm run cli -- schedule plan '{
-  "tickets": [
-    { "ticketId": "ENG-1", "title": "Refactor release branch logic", "expectedFiles": ["src/release/branch.ts"] },
-    { "ticketId": "ENG-2", "title": "Add hotfix support", "expectedFiles": ["src/release/hotfix.ts"] }
-  ]
-}'
+npm run cli -- schedule plan '{"tickets": [...]}'
+npm run cli -- --help          # lists every command
 
-npm run cli -- hotspot check '{"files":["src/db/migrations/002_x.sql"]}'
-npm run cli -- gate run '{"dispatchId":"d1","ticketId":"ENG-1","branch":"feat/ENG-1/x","domains":["release"],"expectedFiles":["src/release/branch.ts"],"actualFiles":["src/release/branch.ts"],"ciStatus":"success"}'
-
-npm run cli -- --help   # lists every command
+npm run mcp                    # starts the MCP server on stdio
 ```
 
-Once built (`npm run build`), the compiled CLI is also installable as the `harbormaster` bin (see `package.json`).
+Once built (`npm run build`), the compiled CLI is also installable as the `harbormaster` bin, and the MCP server is runnable directly at `dist/agent-iface/mcp/index.js` for any MCP-compatible client (Claude Code, Cursor, etc.).
 
-### MCP server
+Hotspot leases live in an in-process manager: they persist for the life of the MCP server, but not across separate CLI invocations (each is a fresh process). Provenance and release commands are backed by Postgres and persist regardless of which surface calls them. See [docs/integration.md](./docs/integration.md) for the full breakdown and [docs/how-to.md](./docs/how-to.md) for a worked example of the persistence gotcha.
 
-```bash
-npm run mcp   # starts the harbormaster MCP server on stdio
-```
+## Where to go next
 
-Registers one tool per command — `schedule_plan`, `hotspot_check`, `hotspot_register`, `hotspot_acquire`, `hotspot_release`, `hotspot_release_by_holder`, `hotspot_list_active`, `gate_run`, `provenance_record`, `provenance_query`, `release_create`, `release_list`, `release_manifest`, `release_notes` — each with a JSON Schema generated from the same zod definitions used by the CLI. Point any MCP-compatible client (Claude Code, Cursor, etc.) at `node dist/agent-iface/mcp/index.js` after `npm run build`.
-
-### Statefulness
-
-Hotspot leases live in an in-process manager. The MCP server is long-running, so leases persist for the life of that process — exactly the "advisory lock" semantics the spec calls for. The CLI is a fresh process per invocation, so leases taken through it do not persist across separate `harbormaster` runs; use the MCP server (or the library directly) when you need leases to outlive a single command. Provenance and release commands are backed by Postgres and persist regardless of which surface calls them.
-
-## Releases milestone status
-
-All milestones in `spec.md` (M0–M9) are implemented: scaffold, worktrees + queue, optimistic re-run, impact + scheduler, semantic conflict detection, hotspot leases, gates, Linear + provenance, Linear-planned releases, and the CLI/MCP agent interface above.
+- Running a specific command → [docs/how-to.md](./docs/how-to.md)
+- Exact field-level API reference → [docs/api.md](./docs/api.md)
+- How the system fits together → [docs/architecture.md](./docs/architecture.md)
+- Standing it up against real GitHub/Linear → [docs/integration.md](./docs/integration.md)
+- Milestone-by-milestone build history → [PROGRESS.md](./PROGRESS.md) and [CHANGELOG.md](./CHANGELOG.md)

@@ -186,7 +186,36 @@
 | b | API reference documentation (CLI/MCP command surface) | ☑ Done |
 | c | Architecture dossier (`docs/architecture.md`) | ☑ Done |
 | d | Integration guide(s) (`docs/integration.md`) | ☑ Done |
-| e | Usage/how-to guides, `docs/` index, final README pass | ☐ Not started |
+| e | Usage/how-to guides, `docs/` index, final README pass | ☑ Done |
+
+### e — How-to guides, docs index, final README pass (done)
+
+- [x] `docs/how-to.md` — task-oriented recipes, each a copy-pasteable CLI
+  sequence verified against the current build (ran every example live,
+  including against a real local Postgres for the provenance/release
+  recipes): the headline scheduler demo (parallel/sequence/merge, tied back
+  to the spec's headline test), declaring a hotspot and taking/blocking/
+  releasing an advisory lease (with the single-process caveat spelled out,
+  since the CLI can't demonstrate it — each invocation is a fresh process),
+  running the gate pipeline against both a medium- and high-risk domain,
+  recording and querying provenance, and running a release end to end
+  (create → list → notes). Closes with a troubleshooting table for the
+  errors someone hits first (`DATABASE_URL` unset, migrations not applied,
+  the hotspot-across-CLI-calls gotcha, schema validation errors, HITL gate
+  stopping the pipeline)
+- [x] `docs/README.md` — docs index: a table of what each doc is for and
+  when to read it, plus role-based reading-order guidance (new to the
+  project / integrating an agent / just need one command)
+- [x] Final `README.md` pass: added `docs/how-to.md` to the documentation
+  links, replaced the per-module deep-dive code examples (worktrees, queue
+  adapter, scheduler, gates, releases, agent interface) — now duplicated by
+  `docs/how-to.md`, `docs/api.md`, and `docs/integration.md` — with a
+  compact "Modules at a glance" table and a "Where to go next" section that
+  routes by task, so the README orients a newcomer in one screen instead of
+  re-deriving reference material the docs already own
+- [x] `npm run typecheck`, `npm run lint`, `npm run build`, and the full
+  test suite (318 tests) verified green (docs-only change; no source
+  touched)
 
 ### a — Doc comments (done)
 
