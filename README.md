@@ -14,10 +14,6 @@ Three layers, in priority order:
 2. **Optimistic merge queue** — wraps GitHub merge queue / Mergify. Every agent works in its own worktree. Integration serializes: rebase, CI on the merged result, merge on green. A loser re-runs automatically.
 3. **Advisory leases for hotspots** — migrations and shared contracts get a lock. The other 95% stays lock-free.
 
-## Status
-
-**Spec complete.** M0–M9 done — every milestone in `spec.md` is implemented, the GitHub App mounts a real webhook receiver and enforces branch protection, and the full test suite (335 tests) passes. Most tests exercise the logic against mocked git/HTTP/DB clients; three of the spec's quality-checklist guarantees are additionally proven against a real, throwaway git repository: the headline scheduling test (`tests/e2e/headline-scheduling.e2e.test.ts`), optimistic re-run through a genuine rebase conflict (`tests/e2e/optimistic-rerun.e2e.test.ts`), and cross-branch semantic conflict detection through a genuine `tsc --noEmit` run (`tests/e2e/semantic-conflict.e2e.test.ts`). See [PROGRESS.md](./PROGRESS.md) for the milestone tracker and the remaining real-git/real-subprocess proof gaps.
-
 ## Documentation
 
 Start at [docs/README.md](./docs/README.md) for the full index and reading-order guidance. Quick links:
